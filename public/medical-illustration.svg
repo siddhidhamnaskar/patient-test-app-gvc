@@ -1,0 +1,94 @@
+<svg width="800" height="800" viewBox="0 0 800 800" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="800" y2="800" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#2dd4bf"/>
+      <stop offset="50%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#818cf8"/>
+    </linearGradient>
+    <linearGradient id="cardGrad" x1="200" y1="200" x2="600" y2="600" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="white" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="white" stop-opacity="0.1"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="800" height="800" fill="url(#bgGrad)"/>
+
+  <!-- Decorative circles -->
+  <circle cx="100" cy="120" r="70" fill="white" fill-opacity="0.12"/>
+  <circle cx="700" cy="680" r="110" fill="white" fill-opacity="0.08"/>
+  <circle cx="680" cy="160" r="45" fill="white" fill-opacity="0.14"/>
+  <circle cx="90" cy="620" r="55" fill="white" fill-opacity="0.1"/>
+
+  <!-- Main glass card -->
+  <rect x="200" y="220" width="400" height="360" rx="48" fill="url(#cardGrad)" stroke="white" stroke-opacity="0.25" stroke-width="2"/>
+
+  <!-- Friendly child character -->
+  <g transform="translate(320, 260)">
+    <!-- Head -->
+    <circle cx="80" cy="70" r="55" fill="#fde68a"/>
+    <!-- Hair -->
+    <path d="M30 55 C30 25 55 5 80 5 C105 5 130 25 130 55 C130 45 120 35 110 35 C100 35 95 45 80 45 C65 45 60 35 50 35 C40 35 30 45 30 55" fill="#78350f"/>
+    <!-- Eyes -->
+    <circle cx="60" cy="70" r="6" fill="#451a03"/>
+    <circle cx="100" cy="70" r="6" fill="#451a03"/>
+    <!-- Smile -->
+    <path d="M60 90 Q80 105 100 90" stroke="#451a03" stroke-width="4" stroke-linecap="round" fill="none"/>
+    <!-- Cheeks -->
+    <circle cx="50" cy="85" r="8" fill="#fca5a5" fill-opacity="0.6"/>
+    <circle cx="110" cy="85" r="8" fill="#fca5a5" fill-opacity="0.6"/>
+    <!-- Body -->
+    <path d="M40 130 L40 220 L120 220 L120 130 Q120 120 110 120 L50 120 Q40 120 40 130" fill="#60a5fa"/>
+    <!-- Arms -->
+    <path d="M40 150 Q10 170 15 200" stroke="#fde68a" stroke-width="18" stroke-linecap="round" fill="none"/>
+    <path d="M120 150 Q150 170 145 200" stroke="#fde68a" stroke-width="18" stroke-linecap="round" fill="none"/>
+    <!-- Holding a heart -->
+    <path d="M120 170 C120 155 140 155 145 170 C150 155 170 155 170 170 C170 190 145 205 145 205 C145 205 120 190 120 170" fill="#f472b6"/>
+  </g>
+
+  <!-- Teddy bear friend -->
+  <g transform="translate(480, 360)">
+    <!-- Ears -->
+    <circle cx="15" cy="20" r="15" fill="#92400e"/>
+    <circle cx="75" cy="20" r="15" fill="#92400e"/>
+    <!-- Head -->
+    <circle cx="45" cy="55" r="35" fill="#b45309"/>
+    <!-- Snout -->
+    <ellipse cx="45" cy="60" rx="14" ry="10" fill="#fde68a"/>
+    <circle cx="45" cy="55" r="4" fill="#451a03"/>
+    <!-- Eyes -->
+    <circle cx="33" cy="48" r="4" fill="#451a03"/>
+    <circle cx="57" cy="48" r="4" fill="#451a03"/>
+    <!-- Body -->
+    <ellipse cx="45" cy="110" rx="32" ry="40" fill="#b45309"/>
+    <!-- Belly -->
+    <ellipse cx="45" cy="115" rx="18" ry="22" fill="#fde68a"/>
+  </g>
+
+  <!-- Friendly medical cross -->
+  <g transform="translate(250, 380)">
+    <rect x="0" y="22" width="70" height="26" rx="10" fill="white"/>
+    <rect x="22" y="0" width="26" height="70" rx="10" fill="white"/>
+  </g>
+
+  <!-- Bandage/plaster -->
+  <g transform="translate(520, 280)">
+    <rect x="0" y="10" width="70" height="28" rx="14" fill="white" fill-opacity="0.9"/>
+    <circle cx="25" cy="24" r="4" fill="#cbd5e1"/>
+    <circle cx="45" cy="24" r="4" fill="#cbd5e1"/>
+  </g>
+
+  <!-- Sparkles/stars -->
+  <g fill="white" fill-opacity="0.8">
+    <path d="M180 300 L185 315 L200 320 L185 325 L180 340 L175 325 L160 320 L175 315 Z"/>
+    <path d="M600 250 L604 262 L616 266 L604 270 L600 282 L596 270 L584 266 L596 262 Z"/>
+    <path d="M620 420 L623 428 L631 431 L623 434 L620 442 L617 434 L609 431 L617 428 Z"/>
+    <path d="M190 480 L194 492 L206 496 L194 500 L190 512 L186 500 L174 496 L186 492 Z"/>
+  </g>
+
+  <!-- Floating dots -->
+  <circle cx="160" cy="220" r="8" fill="white" fill-opacity="0.5"/>
+  <circle cx="640" cy="360" r="6" fill="white" fill-opacity="0.5"/>
+  <circle cx="520" cy="580" r="10" fill="white" fill-opacity="0.4"/>
+  <circle cx="300" cy="200" r="6" fill="white" fill-opacity="0.5"/>
+</svg>

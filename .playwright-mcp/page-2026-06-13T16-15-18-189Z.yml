@@ -1,0 +1,27 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e3]:
+      - generic [ref=e7]:
+        - img [ref=e9]
+        - generic [ref=e11]: Patient Test App
+      - img "Healthcare illustration" [ref=e13]
+      - blockquote [ref=e15]:
+        - paragraph [ref=e16]: “Caring for every little hero with kindness, safety, and smiles.”
+    - generic [ref=e18]:
+      - generic [ref=e19]:
+        - heading "Welcome back" [level=1] [ref=e20]
+        - paragraph [ref=e21]: A safe, friendly place for your child's health tests and reports.
+      - generic [ref=e22]:
+        - button "Continue with Google" [ref=e23]:
+          - img [ref=e24]
+          - text: Continue with Google
+        - generic [ref=e33]: Secure sign-in
+        - paragraph [ref=e34]:
+          - text: By continuing, you agree to our
+          - link "Terms of Service" [ref=e35] [cursor=pointer]:
+            - /url: "#"
+          - text: and
+          - link "Privacy Policy" [ref=e36] [cursor=pointer]:
+            - /url: "#"
+          - text: .
+  - alert [ref=e37]
