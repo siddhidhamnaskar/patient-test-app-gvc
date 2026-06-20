@@ -30,6 +30,12 @@ export default async function Home() {
         </h1>
         <p className="mt-2 text-sm text-gray-500">{session.user?.email}</p>
         
+        {session.user?.role && (
+          <span className="mt-3 inline-flex items-center rounded-full bg-teal-50 px-3 py-1 text-xs font-medium text-teal-700 ring-1 ring-inset ring-teal-600/20">
+            Role: {session.user.role}
+          </span>
+        )}
+        
         <div className="mt-8 border-t border-gray-100 pt-6">
           <form
             action={async () => {

@@ -47,7 +47,7 @@ export default function LoginPage() {
         </div>
 
         <div className="relative z-10 px-8 pb-6">
-          <blockquote className="max-w-md text-white/90">
+          <blockquote className="max-w-full text-white/90">
             <p className="text-lg font-medium leading-relaxed">
               &ldquo;Caring for every little hero with kindness, safety, and
               smiles.&rdquo;
