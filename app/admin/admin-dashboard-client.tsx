@@ -1,7 +1,14 @@
 "use client";
 
-import { useState, useTransition, useMemo } from "react";
-import { createUserAction, updateUserAction, deleteUserAction } from "./actions";
+import { useState, useTransition, useMemo, useRef } from "react";
+import {
+  createUserAction,
+  updateUserAction,
+  deleteUserAction,
+  uploadImagesAction,
+  updateImageNameAction,
+} from "./actions";
+import { formatUTCDate, formatUTCDateTime } from "@/lib/date-utils";
 
 interface User {
   id: number;
@@ -12,28 +19,51 @@ interface User {
   createdAt: string;
 }
 
+interface ImageMetadata {
+  id: string;
+  name: string;
+  url: string;
+  uploadedBy: string;
+  createdAt: string;
+}
+
 interface AdminDashboardClientProps {
   initialUsers: User[];
+  initialImages: ImageMetadata[];
   currentUserId?: string;
   currentUserEmail?: string | null;
 }
 
-type TabType = "users" | "system" | "security";
+type TabType = "users" | "system" | "security" | "images";
 
 export default function AdminDashboardClient({
   initialUsers,
+  initialImages,
   currentUserId,
   currentUserEmail,
 }: AdminDashboardClientProps) {
   const [activeTab, setActiveTab] = useState<TabType>("users");
   const [users, setUsers] = useState<User[]>(initialUsers);
+  const [images, setImages] = useState<ImageMetadata[]>(initialImages);
+  
+  // Search/Filters states
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
+  const [imageSearchTerm, setImageSearchTerm] = useState("");
   
   // Modal states
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  
+  // Image Edit Modal states
+  const [isImageEditModalOpen, setIsImageEditModalOpen] = useState(false);
+  const [activeImage, setActiveImage] = useState<ImageMetadata | null>(null);
+  const [imageEditName, setImageEditName] = useState("");
+
+  // Upload Form states
+  const [uploadName, setUploadName] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Current active user for editing/deleting
   const [activeUser, setActiveUser] = useState<User | null>(null);
@@ -63,6 +93,7 @@ export default function AdminDashboardClient({
   
   const [isPending, startTransition] = useTransition();
   const [isSettingsSaving, setIsSettingsSaving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   // Clear notifications after 5 seconds
   const showNotification = (type: "success" | "error", message: string) => {
@@ -84,6 +115,14 @@ export default function AdminDashboardClient({
       return matchesSearch && matchesRole;
     });
   }, [users, searchTerm, roleFilter]);
+
+  // Filtered images
+  const filteredImages = useMemo(() => {
+    return images.filter((image) =>
+      image.name.toLowerCase().includes(imageSearchTerm.toLowerCase()) ||
+      image.uploadedBy.toLowerCase().includes(imageSearchTerm.toLowerCase())
+    );
+  }, [images, imageSearchTerm]);
 
   // Stats calculation
   const stats = useMemo(() => {
@@ -188,6 +227,65 @@ export default function AdminDashboardClient({
     });
   };
 
+  // Handlers for Local Image Management
+  const handleUploadImage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const fileInput = fileInputRef.current;
+    if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+      showNotification("error", "Please select at least one image file.");
+      return;
+    }
+
+    setIsUploading(true);
+    const formData = new FormData();
+    for (let i = 0; i < fileInput.files.length; i++) {
+      formData.append("files", fileInput.files[i]);
+    }
+
+    try {
+      const res = await uploadImagesAction(formData);
+      if (res.success && res.data) {
+        setImages((prev) => [...res.data!, ...prev]);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+        showNotification("success", `Successfully uploaded ${res.data.length} images. Edit their names below.`);
+      } else {
+        showNotification("error", res.error || "Upload failed.");
+      }
+    } catch (err: any) {
+      console.error(err);
+      showNotification("error", err.message || "An error occurred during file upload.");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleOpenImageEditModal = (image: ImageMetadata) => {
+    setActiveImage(image);
+    setImageEditName(image.name);
+    setIsImageEditModalOpen(true);
+  };
+
+  const handleUpdateImageName = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeImage || !imageEditName.trim()) return;
+
+    startTransition(async () => {
+      const res = await updateImageNameAction(activeImage.id, imageEditName);
+      if (res.success) {
+        setImages((prev) =>
+          prev.map((img) => (img.id === activeImage.id ? { ...img, name: imageEditName.trim() } : img))
+        );
+        setIsImageEditModalOpen(false);
+        setActiveImage(null);
+        showNotification("success", "Image name successfully updated.");
+      } else {
+        showNotification("error", res.error || "Failed to update image name.");
+      }
+    });
+  };
+
   // Handlers for System and Security Settings Saving
   const handleSaveSystemSettings = (e: React.FormEvent) => {
     e.preventDefault();
@@ -247,7 +345,7 @@ export default function AdminDashboardClient({
             <div className="flex gap-1 overflow-x-auto py-1 scrollbar-none">
               <button
                 onClick={() => setActiveTab("users")}
-                className={`flex-1 min-w-[120px] text-center rounded-lg py-2.5 text-xs font-bold transition-all ${
+                className={`flex-1 min-w-[110px] text-center rounded-lg py-2.5 text-xs font-bold transition-all ${
                   activeTab === "users"
                     ? "bg-teal-600 text-white shadow-sm"
                     : "bg-white text-gray-500 hover:text-gray-700 border border-gray-200"
@@ -256,8 +354,18 @@ export default function AdminDashboardClient({
                 Users Settings
               </button>
               <button
+                onClick={() => setActiveTab("images")}
+                className={`flex-1 min-w-[110px] text-center rounded-lg py-2.5 text-xs font-bold transition-all ${
+                  activeTab === "images"
+                    ? "bg-teal-600 text-white shadow-sm"
+                    : "bg-white text-gray-500 hover:text-gray-700 border border-gray-200"
+                }`}
+              >
+                Image Settings
+              </button>
+              <button
                 onClick={() => setActiveTab("system")}
-                className={`flex-1 min-w-[120px] text-center rounded-lg py-2.5 text-xs font-bold transition-all ${
+                className={`flex-1 min-w-[110px] text-center rounded-lg py-2.5 text-xs font-bold transition-all ${
                   activeTab === "system"
                     ? "bg-teal-600 text-white shadow-sm"
                     : "bg-white text-gray-500 hover:text-gray-700 border border-gray-200"
@@ -267,7 +375,7 @@ export default function AdminDashboardClient({
               </button>
               <button
                 onClick={() => setActiveTab("security")}
-                className={`flex-1 min-w-[120px] text-center rounded-lg py-2.5 text-xs font-bold transition-all ${
+                className={`flex-1 min-w-[110px] text-center rounded-lg py-2.5 text-xs font-bold transition-all ${
                   activeTab === "security"
                     ? "bg-teal-600 text-white shadow-sm"
                     : "bg-white text-gray-500 hover:text-gray-700 border border-gray-200"
@@ -293,6 +401,20 @@ export default function AdminDashboardClient({
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
               </svg>
               Users Settings
+            </button>
+
+            <button
+              onClick={() => setActiveTab("images")}
+              className={`w-full flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-all ${
+                activeTab === "images"
+                  ? "bg-teal-600 text-white shadow-md shadow-teal-500/10"
+                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+              }`}
+            >
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              Image Settings
             </button>
 
             <button
@@ -413,7 +535,7 @@ export default function AdminDashboardClient({
                 </div>
               </div>
 
-              {/* Table */}
+              {/* Users Table */}
               <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
                 <div className="overflow-x-auto">
                   <table className="w-full border-collapse text-left text-sm text-gray-500">
@@ -470,11 +592,7 @@ export default function AdminDashboardClient({
                                 {user.createdBy || "System (Seed)"}
                               </td>
                               <td className="whitespace-nowrap px-6 py-4 text-gray-500 text-xs">
-                                {new Date(user.createdAt).toLocaleDateString(undefined, {
-                                  year: "numeric",
-                                  month: "short",
-                                  day: "numeric",
-                                })}
+                                {formatUTCDate(user.createdAt)}
                               </td>
                               <td className="whitespace-nowrap px-6 py-4 text-right">
                                 <div className="flex justify-end gap-3">
@@ -519,7 +637,115 @@ export default function AdminDashboardClient({
             </div>
           )}
 
-          {/* TAB 2: SYSTEM CONFIGURATION SETTINGS */}
+          {/* TAB 2: SHARED IMAGE SETTINGS */}
+          {activeTab === "images" && (
+            <div className="space-y-6">
+              
+              {/* Upload Image Section */}
+              <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm space-y-4">
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">Upload New Local Image</h3>
+                  <p className="text-sm text-gray-500 mt-1">Upload images to the local filesystem server, accessible by all users.</p>
+                </div>
+
+                <form onSubmit={handleUploadImage} className="space-y-4">
+                  <div className="w-full">
+                    <label className="block text-xs font-bold uppercase tracking-wider text-gray-500">Choose Image File(s)</label>
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      required
+                      multiple
+                      accept="image/*"
+                      className="mt-2 w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100 cursor-pointer"
+                    />
+                    <span className="text-[10px] text-gray-400 mt-1.5 block">
+                      You can select one or more images. The default names will be the original filenames.
+                    </span>
+                  </div>
+
+                  <div className="flex justify-end pt-2 border-t border-gray-50">
+                    <button
+                      type="submit"
+                      disabled={isUploading}
+                      className="rounded-xl bg-teal-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-teal-500 active:scale-[0.98] transition-all disabled:opacity-50 cursor-pointer"
+                    >
+                      {isUploading ? "Uploading locally..." : "Upload Images"}
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+              {/* Uploaded Images Search Bar */}
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+                <div className="relative flex-1 max-w-md">
+                  <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
+                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                  </span>
+                  <input
+                    type="text"
+                    placeholder="Search images by name or uploader..."
+                    value={imageSearchTerm}
+                    onChange={(e) => setImageSearchTerm(e.target.value)}
+                    className="w-full rounded-xl border border-gray-200 bg-gray-50/50 py-2.5 pl-10 pr-4 text-sm outline-none transition-all focus:border-teal-500 focus:bg-white focus:ring-2 focus:ring-teal-500/10"
+                  />
+                </div>
+              </div>
+
+              {/* Images Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredImages.length > 0 ? (
+                  filteredImages.map((image) => (
+                    <div key={image.id} className="group overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm hover:shadow-md transition-all">
+                      <div className="aspect-video relative overflow-hidden bg-gray-50 border-b border-gray-100">
+                        <img
+                          src={image.url}
+                          alt={image.name}
+                          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        />
+                      </div>
+                      <div className="p-4 space-y-3">
+                        <div>
+                          <h4 className="font-bold text-gray-900 truncate" title={image.name}>
+                            {image.name}
+                          </h4>
+                          <p className="text-xs text-gray-400 mt-1 truncate">
+                            Uploaded by: {image.uploadedBy}
+                          </p>
+                          <p className="text-[10px] text-gray-400">
+                            Date: {formatUTCDateTime(image.createdAt)}
+                          </p>
+                        </div>
+
+                        <div className="flex justify-end pt-2 border-t border-gray-50">
+                          <button
+                            onClick={() => handleOpenImageEditModal(image)}
+                            className="inline-flex items-center gap-1 text-xs font-bold text-teal-600 hover:text-teal-900 transition-colors cursor-pointer"
+                          >
+                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                            </svg>
+                            Edit Name
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="col-span-full rounded-2xl border border-gray-100 bg-white py-16 text-center text-gray-400">
+                    <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <p className="mt-2 text-sm font-semibold">No images uploaded yet.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* TAB 3: SYSTEM CONFIGURATION SETTINGS */}
           {activeTab === "system" && (
             <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm space-y-6">
               <div>
@@ -615,7 +841,7 @@ export default function AdminDashboardClient({
             </div>
           )}
 
-          {/* TAB 3: SECURITY SETTINGS */}
+          {/* TAB 4: SECURITY SETTINGS */}
           {activeTab === "security" && (
             <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm space-y-6">
               <div>
@@ -896,6 +1122,57 @@ export default function AdminDashboardClient({
           </div>
         </div>
       )}
+
+      {/* Edit Image Name Modal */}
+      {isImageEditModalOpen && activeImage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setIsImageEditModalOpen(false)} />
+          <div className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl border border-gray-150 animate-in scale-in duration-200">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+              <h3 className="text-lg font-bold text-gray-900">Edit Image Name Label</h3>
+              <button
+                onClick={() => setIsImageEditModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+              >
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateImageName} className="mt-4 space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-500">Image Name</label>
+                <input
+                  type="text"
+                  required
+                  value={imageEditName}
+                  onChange={(e) => setImageEditName(e.target.value)}
+                  className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm outline-none transition-all focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 border-t border-gray-100 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setIsImageEditModalOpen(false)}
+                  className="rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 active:scale-[0.98] transition-all cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isPending}
+                  className="rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-teal-500 active:scale-[0.98] transition-all disabled:opacity-50 cursor-pointer"
+                >
+                  {isPending ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

@@ -1,6 +1,8 @@
 import { auth, signOut } from "@/auth";
 import LoginPage from "./login/page";
 import Link from "next/link";
+import { getImagesMetadata } from "@/lib/metadata-store";
+import { formatUTCDate } from "@/lib/date-utils";
 
 export const metadata = {
   title: "Home | Test App",
@@ -15,9 +17,14 @@ export default async function Home() {
     return <LoginPage />;
   }
 
-  // If authenticated, show a clean welcome dashboard page
+  // Fetch initial local uploaded images metadata
+  const images = getImagesMetadata();
+
+  // If authenticated, show a clean welcome dashboard page along with the shared repository
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 p-6 font-sans">
+    <div className="flex min-h-screen flex-col items-center justify-start bg-gray-50 py-12 px-6 font-sans gap-8">
+      
+      {/* Welcome & Profile Card */}
       <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-xl border border-gray-100 text-center">
         {session.user?.image && (
           <img
@@ -82,6 +89,55 @@ export default async function Home() {
           </form>
         </div>
       </div>
+
+      {/* Shared Image Gallery Card */}
+      <div className="w-full max-w-4xl rounded-2xl bg-white p-8 shadow-xl border border-gray-100">
+        <div className="border-b border-gray-100 pb-4 mb-6">
+          <h2 className="text-xl font-extrabold text-gray-900 flex items-center gap-2">
+            <svg className="h-5 w-5 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            Shared Images Repository
+          </h2>
+          <p className="text-sm text-gray-500 mt-1">Locally stored image assets accessible by all authenticated users.</p>
+        </div>
+
+        {images.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+            {images.map((image) => (
+              <div key={image.id} className="group overflow-hidden rounded-xl border border-gray-150 bg-white shadow-sm hover:shadow-md transition-all">
+                <div className="aspect-video relative overflow-hidden bg-gray-100">
+                  <img
+                    src={image.url}
+                    alt={image.name}
+                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  />
+                </div>
+                <div className="p-4">
+                  <h4 className="font-bold text-gray-900 truncate" title={image.name}>
+                    {image.name}
+                  </h4>
+                  <p className="text-[11px] text-gray-400 mt-1 truncate">
+                    Uploaded by: {image.uploadedBy}
+                  </p>
+                  <p className="text-[10px] text-gray-400">
+                    Uploaded: {formatUTCDate(image.createdAt)}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-xl border border-dashed border-gray-200 py-12 text-center text-gray-400">
+            <svg className="mx-auto h-12 w-12 text-gray-300 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            <p className="mt-2 text-sm font-semibold">No shared images available</p>
+            <p className="text-xs text-gray-400 mt-1">Administrators can upload images through the Admin Panel settings.</p>
+          </div>
+        )}
+      </div>
+
     </div>
   );
 }

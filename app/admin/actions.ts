@@ -3,6 +3,9 @@
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
+import fs from "fs";
+import path from "path";
+import { saveImageMetadata, updateImageName, getImagesMetadata, ImageMetadata } from "@/lib/metadata-store";
 
 // Helper function to check if the session is admin or superadmin
 async function requireAdmin() {
@@ -44,7 +47,6 @@ export async function createUserAction(data: { name: string; email: string; role
   }
 
   try {
-    // Check if user already exists
     const existing = await db.user.findUnique({
       where: { email: data.email.toLowerCase() },
     });
@@ -78,7 +80,6 @@ export async function updateUserAction(id: number, data: { name: string; email: 
   }
 
   try {
-    // Check if email is already taken by another user
     const existing = await db.user.findUnique({
       where: { email: data.email.toLowerCase() },
     });
@@ -108,7 +109,6 @@ export async function deleteUserAction(id: number) {
   const session = await requireAdmin();
 
   try {
-    // Prevent self-deletion
     const userToDelete = await db.user.findUnique({
       where: { id },
     });
@@ -130,5 +130,111 @@ export async function deleteUserAction(id: number) {
   } catch (error: any) {
     console.error("Failed to delete user:", error);
     return { success: false, error: error.message || "Failed to delete user." };
+  }
+}
+
+// --- Image Management Server Actions ---
+
+// Upload multiple images and store them locally
+export async function uploadImagesAction(formData: FormData) {
+  const session = await requireAdmin();
+
+  const files = formData.getAll("files") as File[];
+
+  if (!files || files.length === 0) {
+    return { success: false, error: "At least one image file is required." };
+  }
+
+  const uploadedItems: ImageMetadata[] = [];
+
+  try {
+    // Upload Path
+    const uploadsDir = path.join(process.cwd(), "public", "uploads");
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      if (file.size === 0) continue;
+
+      // Validate it is an image
+      if (!file.type.startsWith("image/")) {
+        return { success: false, error: `File "${file.name}" must be an image (PNG, JPEG, etc).` };
+      }
+
+      // Generate unique ID and filename (append index to prevent millisecond collision)
+      const id = "img_" + Date.now() + "_" + i;
+      const originalName = file.name;
+      const extension = originalName.includes(".") ? originalName.split(".").pop() : "png";
+      const filename = `${id}.${extension}`;
+      const filePath = path.join(uploadsDir, filename);
+
+      // Save file buffer
+      const arrayBuffer = await file.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      fs.writeFileSync(filePath, buffer);
+
+      // Clean name: use original filename without its extension
+      const defaultName = originalName.includes(".")
+        ? originalName.substring(0, originalName.lastIndexOf("."))
+        : originalName;
+
+      const imageItem: ImageMetadata = {
+        id,
+        name: defaultName,
+        url: `/uploads/${filename}`,
+        uploadedBy: session.user.email || "Unknown Admin",
+        createdAt: new Date().toISOString(),
+      };
+
+      // Save metadata
+      saveImageMetadata(imageItem);
+      uploadedItems.push(imageItem);
+    }
+
+    // Revalidate routes
+    revalidatePath("/admin");
+    revalidatePath("/");
+
+    return { success: true, data: uploadedItems };
+  } catch (error: any) {
+    console.error("Failed to upload images:", error);
+    return { success: false, error: error.message || "Failed to save files locally." };
+  }
+}
+
+// Edit the name label of an uploaded image
+export async function updateImageNameAction(id: string, name: string) {
+  await requireAdmin();
+
+  if (!id || !name.trim()) {
+    return { success: false, error: "Image ID and a valid Name are required." };
+  }
+
+  try {
+    const success = updateImageName(id, name);
+    if (!success) {
+      return { success: false, error: "Image metadata record not found." };
+    }
+
+    revalidatePath("/admin");
+    revalidatePath("/");
+
+    return { success: true };
+  } catch (error: any) {
+    console.error("Failed to update image name:", error);
+    return { success: false, error: error.message || "Failed to update image name." };
+  }
+}
+
+// Fetch all uploaded images metadata (can be called server side directly too)
+export async function getImagesAction() {
+  await requireAdmin();
+  try {
+    const items = getImagesMetadata();
+    return { success: true, data: items };
+  } catch (error: any) {
+    return { success: false, error: error.message || "Failed to fetch images list." };
   }
 }
