@@ -1,7 +1,7 @@
 import { auth, signOut } from "@/auth";
 import LoginPage from "./login/page";
 import Link from "next/link";
-import { getImagesMetadata } from "@/lib/metadata-store";
+import { getImagesMetadata, getQuestionsMetadata } from "@/lib/metadata-store";
 import { formatUTCDate } from "@/lib/date-utils";
 
 export const metadata = {
@@ -19,6 +19,9 @@ export default async function Home() {
 
   // Fetch initial local uploaded images metadata
   const images = getImagesMetadata();
+
+  // Fetch initial local questions metadata
+  const questions = getQuestionsMetadata();
 
   // If authenticated, show a clean welcome dashboard page along with the shared repository
   return (
@@ -82,7 +85,7 @@ export default async function Home() {
           >
             <button
               type="submit"
-              className="w-full rounded-xl bg-red-600 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-red-500 transition-colors duration-200 active:scale-[0.98] cursor-pointer"
+              className="w-full rounded-xl bg-red-600 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-red-500 transition-colors duration-200 active:scale-[0.98] transition-colors cursor-pointer"
             >
               Sign Out
             </button>
@@ -134,6 +137,44 @@ export default async function Home() {
             </svg>
             <p className="mt-2 text-sm font-semibold">No shared images available</p>
             <p className="text-xs text-gray-400 mt-1">Administrators can upload images through the Admin Panel settings.</p>
+          </div>
+        )}
+      </div>
+
+      {/* Shared Questions Library Card */}
+      <div className="w-full max-w-4xl rounded-2xl bg-white p-8 shadow-xl border border-gray-100">
+        <div className="border-b border-gray-100 pb-4 mb-6">
+          <h2 className="text-xl font-extrabold text-gray-900 flex items-center gap-2">
+            <svg className="h-5 w-5 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Shared Questions Library
+          </h2>
+          <p className="text-sm text-gray-500 mt-1">Intake and diagnostic questions stored locally and shared across all users.</p>
+        </div>
+
+        {questions && questions.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {questions.map((q) => (
+              <div key={q.id} className="group relative overflow-hidden rounded-xl border border-gray-150 bg-white p-5 shadow-sm hover:shadow-md hover:border-teal-150 transition-all duration-200">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-mono text-gray-400 block tracking-wider uppercase">{q.id}</span>
+                    <h4 className="font-bold text-gray-900 text-sm whitespace-pre-wrap leading-snug">
+                      {q.text}
+                    </h4>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-xl border border-dashed border-gray-200 py-12 text-center text-gray-400">
+            <svg className="mx-auto h-12 w-12 text-gray-300 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p className="mt-2 text-sm font-semibold">No questions configured yet</p>
+            <p className="text-xs text-gray-400 mt-1">Administrators can configure new questions through the Admin Panel settings.</p>
           </div>
         )}
       </div>

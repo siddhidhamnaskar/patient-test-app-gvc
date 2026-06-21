@@ -5,7 +5,16 @@ import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import fs from "fs";
 import path from "path";
-import { saveImageMetadata, updateImageName, getImagesMetadata, ImageMetadata } from "@/lib/metadata-store";
+import {
+  saveImageMetadata,
+  updateImageName,
+  getImagesMetadata,
+  ImageMetadata,
+  saveQuestionMetadata,
+  getQuestionsMetadata,
+  saveQuestionsMetadata,
+  QuestionMetadata,
+} from "@/lib/metadata-store";
 
 // Helper function to check if the session is admin or superadmin
 async function requireAdmin() {
@@ -148,7 +157,6 @@ export async function uploadImagesAction(formData: FormData) {
   const uploadedItems: ImageMetadata[] = [];
 
   try {
-    // Upload Path
     const uploadsDir = path.join(process.cwd(), "public", "uploads");
     if (!fs.existsSync(uploadsDir)) {
       fs.mkdirSync(uploadsDir, { recursive: true });
@@ -228,7 +236,7 @@ export async function updateImageNameAction(id: string, name: string) {
   }
 }
 
-// Fetch all uploaded images metadata (can be called server side directly too)
+// Fetch all uploaded images metadata
 export async function getImagesAction() {
   await requireAdmin();
   try {
@@ -236,5 +244,172 @@ export async function getImagesAction() {
     return { success: true, data: items };
   } catch (error: any) {
     return { success: false, error: error.message || "Failed to fetch images list." };
+  }
+}
+
+// --- Question Management Server Actions ---
+
+// Parse helper for CSV format
+function parseCSV(text: string): string[][] {
+  const lines: string[][] = [];
+  let row: string[] = [""];
+  let inQuotes = false;
+  
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    const nextChar = text[i + 1];
+    
+    if (char === '"') {
+      if (inQuotes && nextChar === '"') {
+        row[row.length - 1] += '"';
+        i++; // skip next quote
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (char === ',' && !inQuotes) {
+      row.push("");
+    } else if ((char === '\r' || char === '\n') && !inQuotes) {
+      if (char === '\r' && nextChar === '\n') {
+        i++; // skip \n
+      }
+      lines.push(row);
+      row = [""];
+    } else {
+      row[row.length - 1] += char;
+    }
+  }
+  if (row.length > 1 || row[0] !== "") {
+    lines.push(row);
+  }
+  return lines;
+}
+
+// Create a new question manually and store it locally
+export async function createQuestionAction(data: { text: string }) {
+  await requireAdmin();
+
+  if (!data.text) {
+    return { success: false, error: "Question text is required." };
+  }
+
+  const text = data.text.trim();
+
+  try {
+    const id = "q_" + Date.now();
+    const questionItem: QuestionMetadata = {
+      id,
+      text,
+    };
+
+    saveQuestionMetadata(questionItem);
+
+    // Revalidate routes
+    revalidatePath("/admin");
+    revalidatePath("/");
+
+    return { success: true, data: questionItem };
+  } catch (error: any) {
+    console.error("Failed to save question:", error);
+    return { success: false, error: error.message || "Failed to save question locally." };
+  }
+}
+
+// Import questions from a CSV file
+export async function importQuestionsCSVAction(formData: FormData) {
+  await requireAdmin();
+
+  const file = formData.get("file") as File;
+  if (!file) {
+    return { success: false, error: "No CSV file uploaded." };
+  }
+
+  try {
+    const content = await file.text();
+    const parsedRows = parseCSV(content);
+
+    if (parsedRows.length < 2) {
+      return { success: false, error: "CSV file must contain a header row and at least one question row." };
+    }
+
+    const headers = parsedRows[0].map(h => h.trim().toLowerCase());
+    
+    // Find columns using header matching
+    // Look for Question ID
+    let idIndex = headers.findIndex(h => h.includes("id") || h.includes("key") || h.includes("code"));
+    if (idIndex === -1) idIndex = 0; // Default to first column
+
+    // Look for Question Text / heading
+    let textIndex = headers.findIndex(h => h.includes("text") || h.includes("question") || h.includes("heading") || h.includes("content"));
+    if (textIndex === -1) {
+      textIndex = idIndex === 0 ? 1 : 0; // Default to second column
+    }
+
+    const importedQuestions: QuestionMetadata[] = [];
+    const errors: string[] = [];
+
+    // Parse data rows
+    for (let r = 1; r < parsedRows.length; r++) {
+      const row = parsedRows[r];
+      // Skip empty rows
+      if (row.length === 0 || (row.length === 1 && row[0].trim() === "")) {
+        continue;
+      }
+
+      const rawId = row[idIndex];
+      const rawText = row[textIndex];
+
+      if (!rawId || !rawId.trim()) {
+        errors.push(`Row ${r + 1}: Question ID is missing.`);
+        continue;
+      }
+      if (!rawText || !rawText.trim()) {
+        errors.push(`Row ${r + 1}: Question text is missing.`);
+        continue;
+      }
+
+      const id = rawId.trim();
+      const text = rawText.trim();
+
+      if (!/^[a-zA-Z0-9_-]+$/.test(id)) {
+        errors.push(`Row ${r + 1}: Question ID "${id}" contains invalid characters.`);
+        continue;
+      }
+
+      importedQuestions.push({ id, text });
+    }
+
+    if (errors.length > 0 && importedQuestions.length === 0) {
+      return { success: false, error: "Failed to parse CSV questions:\n" + errors.slice(0, 5).join("\n") };
+    }
+
+    if (importedQuestions.length === 0) {
+      return { success: false, error: "No valid questions found in the CSV." };
+    }
+
+    // Save/Merge
+    saveQuestionsMetadata(importedQuestions);
+
+    revalidatePath("/admin");
+    revalidatePath("/");
+
+    return { 
+      success: true, 
+      message: `Successfully imported/merged ${importedQuestions.length} questions.`,
+      warning: errors.length > 0 ? `Skipped ${errors.length} invalid rows:\n` + errors.slice(0, 5).join("\n") : undefined
+    };
+  } catch (error: any) {
+    console.error("Failed to import CSV:", error);
+    return { success: false, error: error.message || "An error occurred while importing CSV." };
+  }
+}
+
+// Fetch all questions
+export async function getQuestionsAction() {
+  await requireAdmin();
+  try {
+    const items = getQuestionsMetadata();
+    return { success: true, data: items };
+  } catch (error: any) {
+    return { success: false, error: error.message || "Failed to fetch questions list." };
   }
 }

@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 
 const METADATA_PATH = path.join(process.cwd(), "lib", "images-metadata.json");
+const QUESTIONS_PATH = path.join(process.cwd(), "lib", "questions-metadata.json");
 
 export interface ImageMetadata {
   id: string;
@@ -11,7 +12,12 @@ export interface ImageMetadata {
   createdAt: string;
 }
 
-// Ensure the directory and file exist
+export interface QuestionMetadata {
+  id: string;
+  text: string;
+}
+
+// Ensure the directory and image file exist
 function ensureStoreExists() {
   const dir = path.dirname(METADATA_PATH);
   if (!fs.existsSync(dir)) {
@@ -19,6 +25,17 @@ function ensureStoreExists() {
   }
   if (!fs.existsSync(METADATA_PATH)) {
     fs.writeFileSync(METADATA_PATH, JSON.stringify([], null, 2), "utf-8");
+  }
+}
+
+// Ensure the directory and questions file exist
+function ensureQuestionsStoreExists() {
+  const dir = path.dirname(QUESTIONS_PATH);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+  if (!fs.existsSync(QUESTIONS_PATH)) {
+    fs.writeFileSync(QUESTIONS_PATH, JSON.stringify([], null, 2), "utf-8");
   }
 }
 
@@ -62,6 +79,47 @@ export function updateImageName(id: string, newName: string): boolean {
     return true;
   } catch (error) {
     console.error("Failed to update image metadata name:", error);
+    return false;
+  }
+}
+
+// Fetch all questions
+export function getQuestionsMetadata(): QuestionMetadata[] {
+  try {
+    ensureQuestionsStoreExists();
+    const content = fs.readFileSync(QUESTIONS_PATH, "utf-8");
+    return JSON.parse(content || "[]");
+  } catch (error) {
+    console.error("Failed to read questions metadata:", error);
+    return [];
+  }
+}
+
+// Save a single question item (checks duplicate)
+export function saveQuestionMetadata(item: QuestionMetadata): boolean {
+  return saveQuestionsMetadata([item]);
+}
+
+// Save multiple questions (updating duplicate IDs)
+export function saveQuestionsMetadata(newItems: QuestionMetadata[]): boolean {
+  try {
+    ensureQuestionsStoreExists();
+    const existing = getQuestionsMetadata();
+    const mergedList: QuestionMetadata[] = [...existing];
+    
+    for (const newItem of newItems) {
+      const idx = mergedList.findIndex(x => x.id.toLowerCase() === newItem.id.toLowerCase());
+      if (idx !== -1) {
+        mergedList[idx] = newItem; // Update text
+      } else {
+        mergedList.unshift(newItem); // Prepend new
+      }
+    }
+    
+    fs.writeFileSync(QUESTIONS_PATH, JSON.stringify(mergedList, null, 2), "utf-8");
+    return true;
+  } catch (error) {
+    console.error("Failed to save questions metadata:", error);
     return false;
   }
 }

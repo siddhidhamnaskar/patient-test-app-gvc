@@ -7,6 +7,9 @@ import {
   deleteUserAction,
   uploadImagesAction,
   updateImageNameAction,
+  createQuestionAction,
+  importQuestionsCSVAction,
+  getQuestionsAction,
 } from "./actions";
 import { formatUTCDate, formatUTCDateTime } from "@/lib/date-utils";
 
@@ -27,29 +30,40 @@ interface ImageMetadata {
   createdAt: string;
 }
 
+interface QuestionMetadata {
+  id: string;
+  text: string;
+}
+
 interface AdminDashboardClientProps {
   initialUsers: User[];
   initialImages: ImageMetadata[];
+  initialQuestions: QuestionMetadata[];
   currentUserId?: string;
   currentUserEmail?: string | null;
 }
 
-type TabType = "users" | "system" | "security" | "images";
+type TabType = "users" | "system" | "security" | "images" | "questions";
 
 export default function AdminDashboardClient({
   initialUsers,
   initialImages,
+  initialQuestions,
   currentUserId,
   currentUserEmail,
 }: AdminDashboardClientProps) {
   const [activeTab, setActiveTab] = useState<TabType>("users");
   const [users, setUsers] = useState<User[]>(initialUsers);
   const [images, setImages] = useState<ImageMetadata[]>(initialImages);
+  const [questions, setQuestions] = useState<QuestionMetadata[]>(initialQuestions);
   
   // Search/Filters states
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [imageSearchTerm, setImageSearchTerm] = useState("");
+  const [questionText, setQuestionText] = useState("");
+  const csvFileInputRef = useRef<HTMLInputElement>(null);
+  const [isCsvImporting, setIsCsvImporting] = useState(false);
   
   // Modal states
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -286,6 +300,67 @@ export default function AdminDashboardClient({
     });
   };
 
+  // Handlers for Local Questions Management
+  const handleCreateQuestion = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!questionText.trim()) {
+      showNotification("error", "Question text is required.");
+      return;
+    }
+
+    startTransition(async () => {
+      const res = await createQuestionAction({ text: questionText });
+      if (res.success && res.data) {
+        setQuestions((prev) => [res.data!, ...prev]);
+        setQuestionText("");
+        showNotification("success", "Question added successfully.");
+      } else {
+        showNotification("error", res.error || "Failed to save question.");
+      }
+    });
+  };
+
+  const handleImportCSV = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const fileInput = csvFileInputRef.current;
+    if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+      showNotification("error", "Please select a CSV file first.");
+      return;
+    }
+
+    setIsCsvImporting(true);
+    const formData = new FormData();
+    formData.append("file", fileInput.files[0]);
+
+    try {
+      const res = await importQuestionsCSVAction(formData);
+      if (res.success) {
+        // Refresh questions list
+        const fetchRes = await getQuestionsAction();
+        if (fetchRes.success && fetchRes.data) {
+          setQuestions(fetchRes.data);
+        }
+        
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+
+        if (res.warning) {
+          showNotification("success", `${res.message}\nWarning: ${res.warning}`);
+        } else {
+          showNotification("success", res.message || "Questions imported successfully.");
+        }
+      } else {
+        showNotification("error", res.error || "CSV Import failed.");
+      }
+    } catch (err: any) {
+      console.error(err);
+      showNotification("error", err.message || "An error occurred during CSV import.");
+    } finally {
+      setIsCsvImporting(false);
+    }
+  };
+
   // Handlers for System and Security Settings Saving
   const handleSaveSystemSettings = (e: React.FormEvent) => {
     e.preventDefault();
@@ -364,6 +439,16 @@ export default function AdminDashboardClient({
                 Image Settings
               </button>
               <button
+                onClick={() => setActiveTab("questions")}
+                className={`flex-1 min-w-[110px] text-center rounded-lg py-2.5 text-xs font-bold transition-all ${
+                  activeTab === "questions"
+                    ? "bg-teal-600 text-white shadow-sm"
+                    : "bg-white text-gray-500 hover:text-gray-700 border border-gray-200"
+                }`}
+              >
+                Questions Config
+              </button>
+              <button
                 onClick={() => setActiveTab("system")}
                 className={`flex-1 min-w-[110px] text-center rounded-lg py-2.5 text-xs font-bold transition-all ${
                   activeTab === "system"
@@ -415,6 +500,20 @@ export default function AdminDashboardClient({
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
               Image Settings
+            </button>
+
+            <button
+              onClick={() => setActiveTab("questions")}
+              className={`w-full flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-all ${
+                activeTab === "questions"
+                  ? "bg-teal-600 text-white shadow-md shadow-teal-500/10"
+                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+              }`}
+            >
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Questions Settings
             </button>
 
             <button
@@ -924,6 +1023,126 @@ export default function AdminDashboardClient({
                   </button>
                 </div>
               </form>
+            </div>
+          )}
+
+          {/* TAB 5: QUESTIONS SETTINGS */}
+          {activeTab === "questions" && (
+            <div className="space-y-6">
+              
+              {/* Add Question & Import CSV side-by-side */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                {/* Add Question Section */}
+                <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm space-y-4">
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900">Add New Local Question</h3>
+                    <p className="text-sm text-gray-500 mt-1">Configure diagnostic or intake questions saved locally.</p>
+                  </div>
+
+                  <form onSubmit={handleCreateQuestion} className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-gray-500">Question Text</label>
+                      <textarea
+                        required
+                        rows={3}
+                        placeholder="e.g. Do you have any pre-existing health conditions?"
+                        value={questionText}
+                        onChange={(e) => setQuestionText(e.target.value)}
+                        className="mt-2 w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm outline-none transition-all focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10 resize-none"
+                      />
+                    </div>
+
+                    <div className="flex justify-end pt-2 border-t border-gray-50">
+                      <button
+                        type="submit"
+                        disabled={isPending}
+                        className="rounded-xl bg-teal-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-teal-500 active:scale-[0.98] transition-all disabled:opacity-50 cursor-pointer"
+                      >
+                        {isPending ? "Adding locally..." : "Add Question"}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+
+                {/* Import Questions from CSV Section */}
+                <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm space-y-4 flex flex-col justify-between">
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900">Import Questions from CSV</h3>
+                    <p className="text-sm text-gray-500 mt-1">Upload a CSV file containing questions. Matches columns by headers (ID, Text / Question / Heading).</p>
+                  </div>
+
+                  <form onSubmit={handleImportCSV} className="space-y-4 mt-auto">
+                    <div className="w-full">
+                      <label className="block text-xs font-bold uppercase tracking-wider text-gray-500">Choose CSV File</label>
+                      <input
+                        type="file"
+                        ref={csvFileInputRef}
+                        required
+                        accept=".csv"
+                        className="mt-2 w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100 cursor-pointer"
+                      />
+                      <span className="text-[10px] text-gray-400 mt-1.5 block">
+                        CSV should have a header row. Duplicate IDs will automatically update existing question text.
+                      </span>
+                    </div>
+
+                    <div className="flex justify-end pt-2 border-t border-gray-50">
+                      <button
+                        type="submit"
+                        disabled={isCsvImporting}
+                        className="rounded-xl bg-teal-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-teal-500 active:scale-[0.98] transition-all disabled:opacity-50 cursor-pointer"
+                      >
+                        {isCsvImporting ? "Importing questions..." : "Import CSV"}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+
+              </div>
+
+              {/* Questions List */}
+              <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
+                <div className="p-4 border-b border-gray-100 bg-gray-50/50">
+                  <h4 className="font-bold text-gray-900">Questions Library</h4>
+                  <p className="text-xs text-gray-400 mt-0.5">Read-only list of configured intake questions.</p>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse text-left text-sm text-gray-500">
+                    <thead className="bg-gray-50/75 text-xs font-semibold uppercase tracking-wider text-gray-600 border-b border-gray-100">
+                      <tr>
+                        <th scope="col" className="px-6 py-4 w-1/4">Question ID</th>
+                        <th scope="col" className="px-6 py-4 w-3/4">Question Text</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {questions && questions.length > 0 ? (
+                        questions.map((q) => (
+                          <tr key={q.id} className="hover:bg-gray-50/50 transition-colors">
+                            <td className="whitespace-nowrap px-6 py-4 font-mono text-sm font-semibold text-teal-850">
+                              {q.id}
+                            </td>
+                            <td className="px-6 py-4 font-medium text-gray-900 whitespace-pre-wrap">
+                              {q.text}
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={2} className="px-6 py-12 text-center">
+                            <div className="flex flex-col items-center justify-center text-gray-400">
+                              <svg className="h-10 w-10 text-gray-300 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              <p className="mt-2 text-sm font-semibold">No questions configured yet.</p>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           )}
 
