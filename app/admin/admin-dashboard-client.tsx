@@ -1792,7 +1792,7 @@ export default function AdminDashboardClient({
                           />
                           <button
                             type="submit"
-                            className="flex items-center justify-center gap-1.5 rounded-xl bg-teal-650 px-5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-teal-600 active:scale-[0.98] transition-all cursor-pointer whitespace-nowrap"
+                            className="bg-teal-500 flex items-center justify-center gap-1.5 rounded-xl bg-teal-650 px-5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-teal-600 active:scale-[0.98] transition-all cursor-pointer whitespace-nowrap"
                           >
                             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
                               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7-7H5" />
