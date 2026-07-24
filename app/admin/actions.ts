@@ -14,6 +14,8 @@ import {
   getQuestionsMetadata,
   saveQuestionsMetadata,
   QuestionMetadata,
+  saveLevelsMetadata,
+  LevelMetadata,
 } from "@/lib/metadata-store";
 
 // Helper function to check if the session is admin or superadmin
@@ -413,3 +415,22 @@ export async function getQuestionsAction() {
     return { success: false, error: error.message || "Failed to fetch questions list." };
   }
 }
+
+// Save all test levels
+export async function saveLevelsAction(levels: LevelMetadata[]) {
+  await requireAdmin();
+  try {
+    const success = saveLevelsMetadata(levels);
+    if (!success) {
+      return { success: false, error: "Failed to save levels metadata." };
+    }
+    revalidatePath("/admin");
+    revalidatePath("/");
+    return { success: true };
+  } catch (error: any) {
+    console.error("Failed to save levels:", error);
+    return { success: false, error: error.message || "Failed to save levels." };
+  }
+}
+
+

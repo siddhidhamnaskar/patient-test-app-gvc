@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import AdminDashboardClient from "./admin-dashboard-client";
 import Link from "next/link";
-import { getImagesMetadata, getQuestionsMetadata } from "@/lib/metadata-store";
+import { getImagesMetadata, getQuestionsMetadata, getLevelsMetadata } from "@/lib/metadata-store";
 
 export const metadata = {
   title: "Admin Panel | Test App",
@@ -30,6 +30,11 @@ export default async function AdminPage() {
 
   // Fetch initial questions metadata
   const questions = getQuestionsMetadata();
+
+  // Fetch initial levels metadata
+  const levels = getLevelsMetadata();
+
+
 
   // Serialize dates to prevent Next.js Client Component warnings
   const serializedUsers = users.map((user) => ({
@@ -84,6 +89,7 @@ export default async function AdminPage() {
           initialUsers={serializedUsers}
           initialImages={images}
           initialQuestions={questions}
+          initialLevels={levels}
           currentUserEmail={session.user.email}
         />
         

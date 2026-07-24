@@ -10,6 +10,7 @@ import {
   createQuestionAction,
   importQuestionsCSVAction,
   getQuestionsAction,
+  saveLevelsAction,
 } from "./actions";
 import { formatUTCDate, formatUTCDateTime } from "@/lib/date-utils";
 
@@ -35,20 +36,39 @@ interface QuestionMetadata {
   text: string;
 }
 
+interface ScreenMetadata {
+  id: string;
+  name: string;
+  imageId?: string;
+  imageIds?: string[];
+  questionId?: string;
+  questionIds?: string[];
+  order: number;
+}
+
+interface LevelMetadata {
+  id: string;
+  name: string;
+  order: number;
+  screens?: ScreenMetadata[];
+}
+
 interface AdminDashboardClientProps {
   initialUsers: User[];
   initialImages: ImageMetadata[];
   initialQuestions: QuestionMetadata[];
+  initialLevels: LevelMetadata[];
   currentUserId?: string;
   currentUserEmail?: string | null;
 }
 
-type TabType = "users" | "system" | "security" | "images" | "questions";
+type TabType = "users" | "system" | "security" | "images" | "questions" | "tests";
 
 export default function AdminDashboardClient({
   initialUsers,
   initialImages,
   initialQuestions,
+  initialLevels,
   currentUserId,
   currentUserEmail,
 }: AdminDashboardClientProps) {
@@ -56,6 +76,21 @@ export default function AdminDashboardClient({
   const [users, setUsers] = useState<User[]>(initialUsers);
   const [images, setImages] = useState<ImageMetadata[]>(initialImages);
   const [questions, setQuestions] = useState<QuestionMetadata[]>(initialQuestions);
+  const [levels, setLevels] = useState<LevelMetadata[]>(initialLevels || []);
+
+  // Level Management states
+  const [newLevelName, setNewLevelName] = useState("");
+  const [editingLevelId, setEditingLevelId] = useState<string | null>(null);
+  const [editingLevelName, setEditingLevelName] = useState("");
+
+  // Screen Management states
+  const [selectedLevelId, setSelectedLevelId] = useState<string | null>(null);
+  const [selectedScreenId, setSelectedScreenId] = useState<string | null>(null);
+  const [newScreenName, setNewScreenName] = useState("");
+  const [newScreenImageIds, setNewScreenImageIds] = useState<string[]>(["", "", "", ""]);
+  const [newScreenQuestionIds, setNewScreenQuestionIds] = useState<string[]>(["", "", "", ""]);
+  const [editingScreenId, setEditingScreenId] = useState<string | null>(null);
+  const [editingScreenName, setEditingScreenName] = useState("");
   
   // Search/Filters states
   const [searchTerm, setSearchTerm] = useState("");
@@ -100,6 +135,16 @@ export default function AdminDashboardClient({
     mfaRequired: false,
     maxAttempts: 5,
     allowPasswordReset: true,
+  });
+
+  // Test Settings states
+  const [testSettings, setTestSettings] = useState({
+    duration: "60m",
+    passingScore: 70,
+    shuffleQuestions: false,
+    shuffleAnswers: false,
+    negativeMarking: false,
+    showResultsImmediately: true,
   });
   
   // Status notifications
@@ -380,6 +425,327 @@ export default function AdminDashboardClient({
     }, 800);
   };
 
+  const handleSaveTestSettings = (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSettingsSaving(true);
+    setTimeout(() => {
+      setIsSettingsSaving(false);
+      showNotification("success", "Test settings and policies saved successfully.");
+    }, 800);
+  };
+
+  // Level Management Handlers
+  const handleMoveLevel = async (index: number, direction: "up" | "down") => {
+    const newIndex = direction === "up" ? index - 1 : index + 1;
+    if (newIndex < 0 || newIndex >= levels.length) return;
+
+    const reordered = [...levels];
+    const temp = reordered[index];
+    reordered[index] = reordered[newIndex];
+    reordered[newIndex] = temp;
+
+    const updated = reordered.map((item, idx) => ({
+      ...item,
+      order: idx + 1,
+    }));
+
+    setLevels(updated);
+
+    startTransition(async () => {
+      const res = await saveLevelsAction(updated);
+      if (res.success) {
+        showNotification("success", "Test levels order updated.");
+      } else {
+        showNotification("error", res.error || "Failed to update levels order.");
+      }
+    });
+  };
+
+  const handleAddLevel = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newLevelName.trim()) {
+      showNotification("error", "Level name is required.");
+      return;
+    }
+
+    const newLevel: LevelMetadata = {
+      id: "lvl_" + Date.now(),
+      name: newLevelName.trim(),
+      order: levels.length + 1,
+    };
+
+    const updated = [...levels, newLevel];
+    setLevels(updated);
+    setNewLevelName("");
+
+    startTransition(async () => {
+      const res = await saveLevelsAction(updated);
+      if (res.success) {
+        showNotification("success", `Level "${newLevel.name}" added successfully.`);
+      } else {
+        showNotification("error", res.error || "Failed to add new level.");
+      }
+    });
+  };
+
+  const handleStartEditLevel = (level: LevelMetadata) => {
+    setEditingLevelId(level.id);
+    setEditingLevelName(level.name);
+  };
+
+  const handleCancelEditLevel = () => {
+    setEditingLevelId(null);
+    setEditingLevelName("");
+  };
+
+  const handleSaveLevelName = async (id: string) => {
+    if (!editingLevelName.trim()) {
+      showNotification("error", "Level name cannot be empty.");
+      return;
+    }
+
+    const updated = levels.map((lvl) => {
+      if (lvl.id === id) {
+        return { ...lvl, name: editingLevelName.trim() };
+      }
+      return lvl;
+    });
+
+    setLevels(updated);
+    setEditingLevelId(null);
+    setEditingLevelName("");
+
+    startTransition(async () => {
+      const res = await saveLevelsAction(updated);
+      if (res.success) {
+        showNotification("success", "Level name updated successfully.");
+      } else {
+        showNotification("error", res.error || "Failed to save level name.");
+      }
+    });
+  };
+
+  const handleDeleteLevel = async (id: string) => {
+    const updated = levels.filter((lvl) => lvl.id !== id).map((lvl, idx) => ({
+      ...lvl,
+      order: idx + 1,
+    }));
+
+    setLevels(updated);
+    if (selectedLevelId === id) {
+      setSelectedLevelId(null);
+      setSelectedScreenId(null);
+    }
+
+    startTransition(async () => {
+      const res = await saveLevelsAction(updated);
+      if (res.success) {
+        showNotification("success", "Level deleted successfully.");
+      } else {
+        showNotification("error", res.error || "Failed to delete level.");
+      }
+    });
+  };
+
+  // Screen Management Handlers
+  const handleAddScreen = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedLevelId) return;
+    if (!newScreenName.trim()) {
+      showNotification("error", "Screen name is required.");
+      return;
+    }
+
+    const level = levels.find(l => l.id === selectedLevelId);
+    if (!level) return;
+
+    const activeImageIds = [...newScreenImageIds];
+    const activeQuestionIds = [...newScreenQuestionIds];
+
+    const newScreen: ScreenMetadata = {
+      id: "scr_" + Date.now(),
+      name: newScreenName.trim(),
+      imageIds: activeImageIds,
+      questionIds: activeQuestionIds,
+      order: (level.screens?.length || 0) + 1,
+    };
+
+    const updatedLevels = levels.map(l => {
+      if (l.id === selectedLevelId) {
+        return {
+          ...l,
+          screens: [...(l.screens || []), newScreen]
+        };
+      }
+      return l;
+    });
+
+    setLevels(updatedLevels);
+    setNewScreenName("");
+    setNewScreenImageIds(["", "", "", ""]);
+    setNewScreenQuestionIds(["", "", "", ""]);
+
+    startTransition(async () => {
+      const res = await saveLevelsAction(updatedLevels);
+      if (res.success) {
+        showNotification("success", `Screen "${newScreen.name}" added successfully.`);
+      } else {
+        showNotification("error", res.error || "Failed to add screen.");
+      }
+    });
+  };
+
+  const handleUpdateScreen = async (screenId: string, updates: Partial<ScreenMetadata>) => {
+    if (!selectedLevelId) return;
+
+    const updatedLevels = levels.map(l => {
+      if (l.id === selectedLevelId) {
+        const updatedScreens = (l.screens || []).map(s => {
+          if (s.id === screenId) {
+            return { ...s, ...updates };
+          }
+          return s;
+        });
+        return { ...l, screens: updatedScreens };
+      }
+      return l;
+    });
+
+    setLevels(updatedLevels);
+
+    startTransition(async () => {
+      const res = await saveLevelsAction(updatedLevels);
+      if (!res.success) {
+        showNotification("error", res.error || "Failed to update screen.");
+      }
+    });
+  };
+
+  const handleUpdateScreenImage = (screen: ScreenMetadata, imageIndex: number, newImageId: string) => {
+    let currentImageIds: string[];
+    if (screen.imageIds) {
+      currentImageIds = [...screen.imageIds];
+    } else if (screen.imageId) {
+      currentImageIds = [screen.imageId];
+    } else {
+      currentImageIds = [];
+    }
+
+    while (currentImageIds.length <= imageIndex) {
+      currentImageIds.push("");
+    }
+    currentImageIds[imageIndex] = newImageId;
+    handleUpdateScreen(screen.id, { imageIds: currentImageIds });
+  };
+
+  const handleUpdateScreenQuestion = (screen: ScreenMetadata, questionIndex: number, newQuestionId: string) => {
+    let currentQuestionIds: string[];
+    if (screen.questionIds) {
+      currentQuestionIds = [...screen.questionIds];
+    } else if (screen.questionId) {
+      currentQuestionIds = [screen.questionId];
+    } else {
+      currentQuestionIds = [];
+    }
+
+    while (currentQuestionIds.length <= questionIndex) {
+      currentQuestionIds.push("");
+    }
+    currentQuestionIds[questionIndex] = newQuestionId;
+    handleUpdateScreen(screen.id, { questionIds: currentQuestionIds });
+  };
+
+  const handleDeleteScreen = async (screenId: string) => {
+    if (!selectedLevelId) return;
+
+    if (selectedScreenId === screenId) {
+      setSelectedScreenId(null);
+    }
+
+    const updatedLevels = levels.map(l => {
+      if (l.id === selectedLevelId) {
+        const filteredScreens = (l.screens || []).filter(s => s.id !== screenId);
+        // Reorder remaining screens
+        const updatedScreens = filteredScreens.map((s, idx) => ({
+          ...s,
+          order: idx + 1
+        }));
+        return { ...l, screens: updatedScreens };
+      }
+      return l;
+    });
+
+    setLevels(updatedLevels);
+
+    startTransition(async () => {
+      const res = await saveLevelsAction(updatedLevels);
+      if (res.success) {
+        showNotification("success", "Screen deleted successfully.");
+      } else {
+        showNotification("error", res.error || "Failed to delete screen.");
+      }
+    });
+  };
+
+  const handleMoveScreen = async (screenIndex: number, direction: "up" | "down") => {
+    if (!selectedLevelId) return;
+
+    const level = levels.find(l => l.id === selectedLevelId);
+    if (!level || !level.screens) return;
+
+    const newIndex = direction === "up" ? screenIndex - 1 : screenIndex + 1;
+    if (newIndex < 0 || newIndex >= level.screens.length) return;
+
+    const reordered = [...level.screens];
+    const temp = reordered[screenIndex];
+    reordered[screenIndex] = reordered[newIndex];
+    reordered[newIndex] = temp;
+
+    const updatedScreens = reordered.map((item, idx) => ({
+      ...item,
+      order: idx + 1,
+    }));
+
+    const updatedLevels = levels.map(l => {
+      if (l.id === selectedLevelId) {
+        return { ...l, screens: updatedScreens };
+      }
+      return l;
+    });
+
+    setLevels(updatedLevels);
+
+    startTransition(async () => {
+      const res = await saveLevelsAction(updatedLevels);
+      if (res.success) {
+        showNotification("success", "Screens order updated.");
+      } else {
+        showNotification("error", res.error || "Failed to reorder screens.");
+      }
+    });
+  };
+
+  const handleStartEditScreen = (screen: ScreenMetadata) => {
+    setEditingScreenId(screen.id);
+    setEditingScreenName(screen.name);
+  };
+
+  const handleCancelEditScreen = () => {
+    setEditingScreenId(null);
+    setEditingScreenName("");
+  };
+
+  const handleSaveScreenName = async (screenId: string) => {
+    if (!editingScreenName.trim()) {
+      showNotification("error", "Screen name cannot be empty.");
+      return;
+    }
+    await handleUpdateScreen(screenId, { name: editingScreenName.trim() });
+    setEditingScreenId(null);
+    setEditingScreenName("");
+    showNotification("success", "Screen name updated successfully.");
+  };
+
   return (
     <div className="w-full space-y-6">
       {/* Toast Notification */}
@@ -449,6 +815,16 @@ export default function AdminDashboardClient({
                 Questions Config
               </button>
               <button
+                onClick={() => setActiveTab("tests")}
+                className={`flex-1 min-w-[110px] text-center rounded-lg py-2.5 text-xs font-bold transition-all ${
+                  activeTab === "tests"
+                    ? "bg-teal-600 text-white shadow-sm"
+                    : "bg-white text-gray-500 hover:text-gray-700 border border-gray-200"
+                }`}
+              >
+                Test Settings
+              </button>
+              <button
                 onClick={() => setActiveTab("system")}
                 className={`flex-1 min-w-[110px] text-center rounded-lg py-2.5 text-xs font-bold transition-all ${
                   activeTab === "system"
@@ -514,6 +890,20 @@ export default function AdminDashboardClient({
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               Questions Settings
+            </button>
+
+            <button
+              onClick={() => setActiveTab("tests")}
+              className={`w-full flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-all ${
+                activeTab === "tests"
+                  ? "bg-teal-600 text-white shadow-md shadow-teal-500/10"
+                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+              }`}
+            >
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+              </svg>
+              Test Settings
             </button>
 
             <button
@@ -1143,6 +1533,628 @@ export default function AdminDashboardClient({
                   </table>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* TAB 6: TEST SETTINGS */}
+          {activeTab === "tests" && (
+            <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm space-y-6">
+              
+              {/* Breadcrumb Navigation / Header */}
+              <div className="flex flex-col gap-3 border-b border-gray-100 pb-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900">Assessment Configuration</h3>
+                    <p className="text-sm text-gray-500 mt-0.5">
+                      Configure test levels, add diagnostic screens, and map target images and intake questions.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Breadcrumbs */}
+                <div className="flex flex-wrap items-center gap-1.5 text-xs text-gray-500 bg-gray-50 px-3.5 py-2 rounded-xl border border-gray-150">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedLevelId(null);
+                      setSelectedScreenId(null);
+                    }}
+                    className={`font-semibold hover:text-teal-650 transition-colors ${
+                      !selectedLevelId ? "text-teal-650 cursor-default" : "text-gray-500 cursor-pointer"
+                    }`}
+                    disabled={!selectedLevelId}
+                  >
+                    Test Levels
+                  </button>
+
+                  {selectedLevelId && (
+                    <>
+                      <span className="text-gray-300">/</span>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedScreenId(null)}
+                        className={`font-semibold hover:text-teal-650 transition-colors max-w-[150px] truncate ${
+                          !selectedScreenId ? "text-teal-650 cursor-default" : "text-gray-500 cursor-pointer"
+                        }`}
+                        disabled={!selectedScreenId}
+                      >
+                        {levels.find(l => l.id === selectedLevelId)?.name || "Selected Level"} Screens
+                      </button>
+                    </>
+                  )}
+
+                  {selectedLevelId && selectedScreenId && (
+                    <>
+                      <span className="text-gray-300">/</span>
+                      <span className="font-semibold text-teal-650 max-w-[180px] truncate">
+                        {levels.find(l => l.id === selectedLevelId)?.screens?.find(s => s.id === selectedScreenId)?.name || "Screen"} Configuration
+                      </span>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* View 1: Levels List (selectedLevelId is null) */}
+              {!selectedLevelId && (
+                <div className="space-y-6 animate-in fade-in duration-200">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <h4 className="text-sm font-bold text-gray-800 uppercase tracking-wider">
+                      Select or Manage Test Levels
+                    </h4>
+                    
+                    {/* Add New Level Form */}
+                    <form onSubmit={handleAddLevel} className="flex gap-2 w-full sm:w-auto max-w-sm">
+                      <input
+                        type="text"
+                        placeholder="Add Level Name (e.g. Level 5)"
+                        value={newLevelName}
+                        onChange={(e) => setNewLevelName(e.target.value)}
+                        className="flex-1 min-w-[200px] rounded-xl border border-gray-200 px-3.5 py-2 text-sm outline-none transition-all focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10"
+                        required
+                      />
+                      <button
+                        type="submit"
+                        className="flex items-center justify-center rounded-xl bg-teal-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-teal-500 active:scale-[0.98] transition-all cursor-pointer whitespace-nowrap"
+                      >
+                        Add Level
+                      </button>
+                    </form>
+                  </div>
+
+                  {/* Levels Table */}
+                  <div className="overflow-hidden rounded-xl border border-gray-150 bg-white shadow-sm">
+                    <div className="overflow-x-auto">
+                      <table className="w-full border-collapse text-left text-sm text-gray-500">
+                        <thead className="bg-gray-50/75 text-xs font-semibold uppercase tracking-wider text-gray-600 border-b border-gray-150">
+                          <tr>
+                            <th scope="col" className="px-5 py-3 w-16 text-center">Order</th>
+                            <th scope="col" className="px-5 py-3 w-20 text-center">Move</th>
+                            <th scope="col" className="px-5 py-3">Level Name</th>
+                            <th scope="col" className="px-5 py-3 w-28 text-center">Screens Count</th>
+                            <th scope="col" className="px-5 py-3 text-right w-44">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {levels && levels.length > 0 ? (
+                            levels.map((level, idx) => {
+                              const isEditing = editingLevelId === level.id;
+                              return (
+                                <tr
+                                  key={level.id}
+                                  onClick={() => setSelectedLevelId(level.id)}
+                                  className="hover:bg-teal-50/20 transition-colors cursor-pointer group"
+                                >
+                                  <td className="whitespace-nowrap px-5 py-3.5 text-center font-mono font-bold text-teal-650 text-xs">
+                                    {level.order}
+                                  </td>
+                                  <td className="whitespace-nowrap px-5 py-3.5 text-center">
+                                    <div className="flex items-center justify-center gap-0.5" onClick={(e) => e.stopPropagation()}>
+                                      <button
+                                        type="button"
+                                        disabled={idx === 0}
+                                        onClick={() => handleMoveLevel(idx, "up")}
+                                        className="p-1 rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-700 disabled:opacity-30 disabled:hover:bg-transparent transition-all cursor-pointer"
+                                        title="Move Up"
+                                      >
+                                        <svg className="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
+                                        </svg>
+                                      </button>
+                                      <button
+                                        type="button"
+                                        disabled={idx === levels.length - 1}
+                                        onClick={() => handleMoveLevel(idx, "down")}
+                                        className="p-1 rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-700 disabled:opacity-30 disabled:hover:bg-transparent transition-all cursor-pointer"
+                                        title="Move Down"
+                                      >
+                                        <svg className="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                                        </svg>
+                                      </button>
+                                    </div>
+                                  </td>
+                                  <td className="px-5 py-3.5 font-semibold text-gray-900 group-hover:text-teal-700 transition-colors">
+                                    {isEditing ? (
+                                      <input
+                                        type="text"
+                                        value={editingLevelName}
+                                        onClick={(e) => e.stopPropagation()}
+                                        onChange={(e) => setEditingLevelName(e.target.value)}
+                                        className="w-full max-w-sm rounded-lg border border-gray-200 px-2.5 py-1 text-sm outline-none transition-all focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10"
+                                        placeholder="Level Name"
+                                        autoFocus
+                                      />
+                                    ) : (
+                                      <span>{level.name}</span>
+                                    )}
+                                  </td>
+                                  <td className="whitespace-nowrap px-5 py-3.5 text-center font-semibold text-xs text-gray-500">
+                                    <span className="inline-flex items-center rounded-full bg-gray-50 px-2.5 py-1 text-xs text-gray-650 ring-1 ring-inset ring-gray-500/10 group-hover:bg-teal-50 group-hover:text-teal-705 transition-colors">
+                                      {level.screens?.length || 0} screens
+                                    </span>
+                                  </td>
+                                  <td className="whitespace-nowrap px-5 py-3.5 text-right">
+                                    <div className="flex justify-end gap-2.5" onClick={(e) => e.stopPropagation()}>
+                                      {isEditing ? (
+                                        <>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleSaveLevelName(level.id)}
+                                            className="text-xs font-bold bg-teal-50 text-teal-700 hover:bg-teal-100 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
+                                          >
+                                            Save
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={handleCancelEditLevel}
+                                            className="text-xs font-bold bg-gray-50 text-gray-600 hover:bg-gray-100 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
+                                          >
+                                            Cancel
+                                          </button>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleStartEditLevel(level)}
+                                            className="text-xs font-bold text-teal-650 hover:text-teal-900 hover:underline transition-colors cursor-pointer"
+                                          >
+                                            Rename
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleDeleteLevel(level.id)}
+                                            className="text-xs font-bold text-red-500 hover:text-red-800 hover:underline transition-colors cursor-pointer"
+                                          >
+                                            Delete
+                                          </button>
+                                       
+                                        </>
+                                      )}
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })
+                          ) : (
+                            <tr>
+                              <td colSpan={5} className="px-5 py-12 text-center text-gray-400 font-medium">
+                                No levels added yet. Create one above.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* View 2: Screens Sequence List (selectedLevelId is active, selectedScreenId is null) */}
+              {selectedLevelId && !selectedScreenId && (
+                (() => {
+                  const selectedLevel = levels.find(l => l.id === selectedLevelId);
+                  if (!selectedLevel) return null;
+                  return (
+                    <div className="space-y-6 animate-in fade-in duration-200">
+                      
+                      {/* Sub-Header / Back button */}
+                      <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+                        <div className="flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedLevelId(null)}
+                            className="flex items-center gap-1 text-xs font-bold text-teal-650 hover:text-teal-900 border border-teal-100 rounded-lg px-2.5 py-1.5 hover:bg-teal-50/20 transition-all cursor-pointer"
+                          >
+                            &larr; Back to Levels
+                          </button>
+                          <h4 className="text-base font-extrabold text-gray-950 flex items-center gap-2">
+                            <span className="inline-flex h-2.5 w-2.5 rounded-full bg-teal-500 animate-pulse"></span>
+                            {selectedLevel.name} Screens Sequence
+                          </h4>
+                        </div>
+                        <span className="text-xs font-bold text-gray-500 bg-gray-50 px-2.5 py-1 rounded-full border border-gray-150">
+                          {selectedLevel.screens?.length || 0} total screens
+                        </span>
+                      </div>
+
+                      {/* Add New Screen Quick Form */}
+                      <div className="bg-teal-50/10 p-4 rounded-xl border border-teal-100/50 space-y-3">
+                        <h5 className="text-xs font-bold uppercase tracking-wider text-teal-800">Add New Screen</h5>
+                        <form onSubmit={handleAddScreen} className="flex flex-col sm:flex-row gap-3">
+                          <input
+                            type="text"
+                            placeholder="Screen Name (e.g. Screen 1: Welcome / Introduction)"
+                            value={newScreenName}
+                            onChange={(e) => setNewScreenName(e.target.value)}
+                            className="flex-1 rounded-xl border border-gray-200 px-3.5 py-2 text-xs outline-none transition-all focus:border-teal-500 focus:bg-white focus:ring-2 focus:ring-teal-500/10 bg-white"
+                            required
+                          />
+                          <button
+                            type="submit"
+                            className="flex items-center justify-center gap-1.5 rounded-xl bg-teal-650 px-5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-teal-600 active:scale-[0.98] transition-all cursor-pointer whitespace-nowrap"
+                          >
+                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7-7H5" />
+                            </svg>
+                            Add Screen
+                          </button>
+                        </form>
+                      </div>
+
+                      {/* Screen List Table / Card layout */}
+                      <div className="overflow-hidden rounded-xl border border-gray-150 bg-white shadow-sm">
+                        <div className="overflow-x-auto">
+                          <table className="w-full border-collapse text-left text-sm text-gray-500">
+                            <thead className="bg-gray-50/75 text-xs font-semibold uppercase tracking-wider text-gray-600 border-b border-gray-150">
+                              <tr>
+                                <th scope="col" className="px-5 py-3 w-16 text-center">Order</th>
+                                <th scope="col" className="px-5 py-3 w-20 text-center">Move</th>
+                                <th scope="col" className="px-5 py-3">Screen Name</th>
+                                <th scope="col" className="px-5 py-3 w-40 text-center">Configuration Summary</th>
+                                <th scope="col" className="px-5 py-3 text-right w-48">Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100">
+                              {selectedLevel.screens && selectedLevel.screens.length > 0 ? (
+                                [...selectedLevel.screens]
+                                  .sort((a, b) => a.order - b.order)
+                                  .map((screen, sIdx) => {
+                                    const isScreenEditing = editingScreenId === screen.id;
+                                    const imgCount = (screen.imageIds || (screen.imageId ? [screen.imageId] : [])).filter(Boolean).length;
+                                    const qCount = (screen.questionIds || (screen.questionId ? [screen.questionId] : [])).filter(Boolean).length;
+                                    
+                                    return (
+                                      <tr
+                                        key={screen.id}
+                                        onClick={() => setSelectedScreenId(screen.id)}
+                                        className="hover:bg-teal-50/20 transition-colors cursor-pointer group"
+                                      >
+                                        <td className="whitespace-nowrap px-5 py-3.5 text-center font-mono font-bold text-teal-650 text-xs">
+                                          {screen.order}
+                                        </td>
+                                        <td className="whitespace-nowrap px-5 py-3.5 text-center">
+                                          <div className="flex items-center justify-center gap-0.5" onClick={(e) => e.stopPropagation()}>
+                                            <button
+                                              type="button"
+                                              disabled={sIdx === 0}
+                                              onClick={() => handleMoveScreen(sIdx, "up")}
+                                              className="p-1 rounded-md text-gray-400 hover:bg-gray-50 hover:text-gray-700 disabled:opacity-30 transition-all cursor-pointer"
+                                              title="Move Up"
+                                            >
+                                              <svg className="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
+                                              </svg>
+                                            </button>
+                                            <button
+                                              type="button"
+                                              disabled={sIdx === (selectedLevel.screens?.length || 0) - 1}
+                                              onClick={() => handleMoveScreen(sIdx, "down")}
+                                              className="p-1 rounded-md text-gray-400 hover:bg-gray-50 hover:text-gray-700 disabled:opacity-30 transition-all cursor-pointer"
+                                              title="Move Down"
+                                            >
+                                              <svg className="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                                              </svg>
+                                            </button>
+                                          </div>
+                                        </td>
+                                        <td className="px-5 py-3.5 font-semibold text-gray-900 group-hover:text-teal-700 transition-colors">
+                                          {isScreenEditing ? (
+                                            <input
+                                              type="text"
+                                              value={editingScreenName}
+                                              onClick={(e) => e.stopPropagation()}
+                                              onChange={(e) => setEditingScreenName(e.target.value)}
+                                              className="w-full max-w-sm rounded-lg border border-gray-200 px-2.5 py-1 text-xs outline-none focus:border-teal-500 focus:ring-1"
+                                              autoFocus
+                                            />
+                                          ) : (
+                                            <span>{screen.name}</span>
+                                          )}
+                                        </td>
+                                        <td className="whitespace-nowrap px-5 py-3.5 text-center text-xs font-medium text-gray-500">
+                                          <div className="flex items-center justify-center gap-2">
+                                            <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold ring-1 ring-inset ${
+                                              imgCount > 0 ? "bg-blue-50 text-blue-700 ring-blue-600/10" : "bg-gray-50 text-gray-400 ring-gray-200"
+                                            }`}>
+                                              {imgCount} / 4 Images
+                                            </span>
+                                            <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold ring-1 ring-inset ${
+                                              qCount > 0 ? "bg-teal-50 text-teal-700 ring-teal-600/10" : "bg-gray-50 text-gray-400 ring-gray-200"
+                                            }`}>
+                                              {qCount} / 4 Questions
+                                            </span>
+                                          </div>
+                                        </td>
+                                        <td className="whitespace-nowrap px-5 py-3.5 text-right">
+                                          <div className="flex justify-end gap-2.5" onClick={(e) => e.stopPropagation()}>
+                                            {isScreenEditing ? (
+                                              <>
+                                                <button
+                                                  type="button"
+                                                  onClick={() => handleSaveScreenName(screen.id)}
+                                                  className="text-xs font-bold bg-teal-50 text-teal-700 hover:bg-teal-100 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
+                                                >
+                                                  Save
+                                                </button>
+                                                <button
+                                                  type="button"
+                                                  onClick={handleCancelEditScreen}
+                                                  className="text-xs font-bold bg-gray-50 text-gray-600 hover:bg-gray-100 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
+                                                >
+                                                  Cancel
+                                                </button>
+                                              </>
+                                            ) : (
+                                              <>
+                                                <button
+                                                  type="button"
+                                                  onClick={() => handleStartEditScreen(screen)}
+                                                  className="text-xs font-bold text-teal-650 hover:text-teal-900 hover:underline transition-colors cursor-pointer"
+                                                >
+                                                  Rename
+                                                </button>
+                                                <button
+                                                  type="button"
+                                                  onClick={() => handleDeleteScreen(screen.id)}
+                                                  className="text-xs font-bold text-red-500 hover:text-red-800 hover:underline transition-colors cursor-pointer"
+                                                >
+                                                  Delete
+                                                </button>
+            
+                                              </>
+                                            )}
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    );
+                                  })
+                              ) : (
+                                <tr>
+                                  <td colSpan={5} className="px-5 py-12 text-center text-gray-400 font-medium">
+                                    No screens configured for this level. Create one using the form above.
+                                  </td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()
+              )}
+
+              {/* View 3: Screen Configuration Slots (selectedLevelId is active, selectedScreenId is active) */}
+              {selectedLevelId && selectedScreenId && (
+                (() => {
+                  const selectedLevel = levels.find(l => l.id === selectedLevelId);
+                  const screen = selectedLevel?.screens?.find(s => s.id === selectedScreenId);
+                  if (!screen) return null;
+
+                  const activeImageIds = screen.imageIds || (screen.imageId ? [screen.imageId] : []);
+                  const activeQuestionIds = screen.questionIds || (screen.questionId ? [screen.questionId] : []);
+                  const isScreenEditing = editingScreenId === screen.id;
+
+                  return (
+                    <div className="space-y-6 border border-teal-100 bg-teal-50/5 p-6 rounded-2xl border-l-4 border-l-teal-500 animate-in fade-in duration-200">
+                      
+                      {/* View 3 header */}
+                      <div className="flex items-center justify-between border-b border-gray-150 pb-4">
+                        <div className="flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedScreenId(null)}
+                            className="flex items-center gap-1 text-xs font-bold text-teal-650 hover:text-teal-900 border border-teal-100 rounded-lg px-2.5 py-1.5 hover:bg-teal-50/20 transition-all cursor-pointer"
+                          >
+                            &larr; Back to Screens List
+                          </button>
+                          <div className="flex items-center gap-2">
+                            {isScreenEditing ? (
+                              <input
+                                type="text"
+                                value={editingScreenName}
+                                onChange={(e) => setEditingScreenName(e.target.value)}
+                                className="rounded-lg border border-gray-200 px-3 py-1 text-sm outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500/10 bg-white font-bold"
+                                autoFocus
+                              />
+                            ) : (
+                              <h4 className="text-base font-extrabold text-gray-900">
+                                {screen.name}
+                              </h4>
+                            )}
+                            <div className="flex items-center gap-1.5">
+                              {isScreenEditing ? (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSaveScreenName(screen.id)}
+                                    className="text-[10px] font-bold bg-teal-150 text-teal-805 hover:bg-teal-200 px-2 py-0.5 rounded transition-colors cursor-pointer"
+                                  >
+                                    Save
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={handleCancelEditScreen}
+                                    className="text-[10px] font-bold bg-gray-150 text-gray-650 hover:bg-gray-200 px-2 py-0.5 rounded transition-colors cursor-pointer"
+                                  >
+                                    Cancel
+                                  </button>
+                                </>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => handleStartEditScreen(screen)}
+                                  className="text-[10px] font-bold text-teal-600 hover:text-teal-900 transition-colors"
+                                >
+                                  (Rename)
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <span className="text-xs font-bold text-teal-800 bg-teal-100 px-2.5 py-1 rounded-full">
+                          Order Pos: {screen.order}
+                        </span>
+                      </div>
+
+                      {/* Main Slots Configurations Form */}
+                      <div className="bg-white p-6 rounded-xl border border-gray-150 shadow-sm space-y-6">
+                        
+                        {/* Images Slot Configuration */}
+                        <div className="space-y-4">
+                          <div>
+                            <h5 className="text-sm font-bold text-gray-900">Assign Screen Images (Max 4)</h5>
+                            <p className="text-xs text-gray-500 mt-0.5">Select image assets to display on this screen. Slots align to the layout sequence.</p>
+                          </div>
+                          
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                            {[0, 1, 2, 3].map((idx) => {
+                              const currentVal = activeImageIds[idx] || "";
+                              return (
+                                <div key={idx} className="space-y-1.5 bg-gray-50/50 p-3 rounded-xl border border-gray-200/60">
+                                  <div className="flex items-center justify-between">
+                                    <span className="block text-[10px] text-gray-400 font-bold uppercase tracking-wider">Slot {idx + 1}</span>
+                                    {currentVal && (
+                                      <span className="inline-flex h-2 w-2 rounded-full bg-teal-500"></span>
+                                    )}
+                                  </div>
+                                  <select
+                                    value={currentVal}
+                                    onChange={(e) => handleUpdateScreenImage(screen, idx, e.target.value)}
+                                    className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-xs outline-none transition-all focus:border-teal-500 focus:ring-1 focus:ring-teal-500/10 bg-white font-medium cursor-pointer"
+                                  >
+                                    <option value="">-- Empty --</option>
+                                    {images.map((image) => (
+                                      <option key={image.id} value={image.id}>
+                                        {image.name}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          {/* Image Previews */}
+                          {activeImageIds.filter(Boolean).length > 0 && (
+                            <div className="pt-2">
+                              <span className="block text-xs font-bold text-gray-700 mb-2">Selected Images Preview:</span>
+                              <div className="flex flex-wrap gap-3">
+                                {activeImageIds.map((imgId, idx) => {
+                                  const imgItem = images.find(img => img.id === imgId);
+                                  if (!imgItem) return null;
+                                  return (
+                                    <div key={imgId + "_" + idx} className="relative group w-28 h-20 rounded-xl overflow-hidden border border-gray-200 shadow-sm flex-shrink-0" title={imgItem.name}>
+                                      <img
+                                        src={imgItem.url}
+                                        alt={imgItem.name}
+                                        className="h-full w-full object-cover"
+                                      />
+                                      <div className="absolute top-1.5 left-1.5 bg-teal-600 text-[10px] font-bold text-white h-5 w-5 rounded-full flex items-center justify-center shadow-sm">
+                                        #{idx + 1}
+                                      </div>
+                                      <div className="absolute bottom-0 inset-x-0 bg-black/60 text-[9px] text-white px-2 py-1 truncate text-center font-medium">
+                                        {imgItem.name}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Questions Slot Configuration */}
+                        <div className="border-t border-gray-150 pt-6 space-y-4">
+                          <div>
+                            <h5 className="text-sm font-bold text-gray-900">Assign Screening Questions (Max 4)</h5>
+                            <p className="text-xs text-gray-500 mt-0.5">Select intake or diagnostic questions to present to patients on this screen.</p>
+                          </div>
+                          
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            {[0, 1, 2, 3].map((idx) => {
+                              const currentVal = activeQuestionIds[idx] || "";
+                              return (
+                                <div key={idx} className="space-y-1.5 bg-gray-50/50 p-3 rounded-xl border border-gray-200/60">
+                                  <div className="flex items-center justify-between">
+                                    <span className="block text-[10px] text-gray-400 font-bold uppercase tracking-wider">Question Slot {idx + 1}</span>
+                                    {currentVal && (
+                                      <span className="inline-flex h-2 w-2 rounded-full bg-teal-500"></span>
+                                    )}
+                                  </div>
+                                  <select
+                                    value={currentVal}
+                                    onChange={(e) => handleUpdateScreenQuestion(screen, idx, e.target.value)}
+                                    className="w-full rounded-lg border border-gray-200 px-3 py-1.5 text-xs outline-none transition-all focus:border-teal-500 focus:ring-1 focus:ring-teal-500/10 bg-white font-medium cursor-pointer"
+                                  >
+                                    <option value="">-- Empty --</option>
+                                    {questions.map((q) => (
+                                      <option key={q.id} value={q.id}>
+                                        ({q.id}) {q.text.length > 45 ? q.text.substring(0, 45) + "..." : q.text}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          {/* Questions Previews */}
+                          {activeQuestionIds.filter(Boolean).length > 0 && (
+                            <div className="pt-2 space-y-2">
+                              <span className="block text-xs font-bold text-gray-700">Selected Questions Preview:</span>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                {activeQuestionIds.map((qId, idx) => {
+                                  const qItem = questions.find(q => q.id === qId);
+                                  if (!qItem) return null;
+                                  return (
+                                    <div key={qId + "_" + idx} className="p-3 rounded-xl bg-gray-50 border border-gray-150 flex items-start gap-2.5 text-[11px] shadow-2xs">
+                                      <span className="bg-teal-100 text-teal-800 font-mono font-extrabold h-5 w-5 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                                        #{idx + 1}
+                                      </span>
+                                      <div className="space-y-0.5">
+                                        <span className="text-[9px] font-mono font-bold text-gray-400 tracking-wider uppercase block">{qItem.id}</span>
+                                        <p className="text-gray-700 italic leading-snug">
+                                          "{qItem.text}"
+                                        </p>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                      </div>
+
+                    </div>
+                  );
+                })()
+              )}
+
             </div>
           )}
 

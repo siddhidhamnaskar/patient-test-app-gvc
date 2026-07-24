@@ -3,6 +3,24 @@ import path from "path";
 
 const METADATA_PATH = path.join(process.cwd(), "lib", "images-metadata.json");
 const QUESTIONS_PATH = path.join(process.cwd(), "lib", "questions-metadata.json");
+const LEVELS_PATH = path.join(process.cwd(), "lib", "levels-metadata.json");
+
+export interface ScreenMetadata {
+  id: string;
+  name: string;
+  imageId?: string;
+  imageIds?: string[];
+  questionId?: string;
+  questionIds?: string[];
+  order: number;
+}
+
+export interface LevelMetadata {
+  id: string;
+  name: string;
+  order: number;
+  screens?: ScreenMetadata[];
+}
 
 export interface ImageMetadata {
   id: string;
@@ -106,7 +124,7 @@ export function saveQuestionsMetadata(newItems: QuestionMetadata[]): boolean {
     ensureQuestionsStoreExists();
     const existing = getQuestionsMetadata();
     const mergedList: QuestionMetadata[] = [...existing];
-    
+
     for (const newItem of newItems) {
       const idx = mergedList.findIndex(x => x.id.toLowerCase() === newItem.id.toLowerCase());
       if (idx !== -1) {
@@ -115,11 +133,52 @@ export function saveQuestionsMetadata(newItems: QuestionMetadata[]): boolean {
         mergedList.unshift(newItem); // Prepend new
       }
     }
-    
+
     fs.writeFileSync(QUESTIONS_PATH, JSON.stringify(mergedList, null, 2), "utf-8");
     return true;
   } catch (error) {
     console.error("Failed to save questions metadata:", error);
+    return false;
+  }
+}
+
+// Ensure levels file exists
+function ensureLevelsStoreExists() {
+  const dir = path.dirname(LEVELS_PATH);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+  if (!fs.existsSync(LEVELS_PATH)) {
+    const defaultLevels: LevelMetadata[] = [
+      { id: "lvl_1", name: "Level 1", order: 1 },
+      { id: "lvl_2", name: "Level 2", order: 2 },
+      { id: "lvl_3", name: "Level 3", order: 3 },
+    ];
+    fs.writeFileSync(LEVELS_PATH, JSON.stringify(defaultLevels, null, 2), "utf-8");
+  }
+}
+
+// Fetch all test levels, sorted by order
+export function getLevelsMetadata(): LevelMetadata[] {
+  try {
+    ensureLevelsStoreExists();
+    const content = fs.readFileSync(LEVELS_PATH, "utf-8");
+    const levels: LevelMetadata[] = JSON.parse(content || "[]");
+    return levels.sort((a, b) => a.order - b.order);
+  } catch (error) {
+    console.error("Failed to read levels metadata:", error);
+    return [];
+  }
+}
+
+// Save all test levels
+export function saveLevelsMetadata(levels: LevelMetadata[]): boolean {
+  try {
+    ensureLevelsStoreExists();
+    fs.writeFileSync(LEVELS_PATH, JSON.stringify(levels, null, 2), "utf-8");
+    return true;
+  } catch (error) {
+    console.error("Failed to save levels metadata:", error);
     return false;
   }
 }
