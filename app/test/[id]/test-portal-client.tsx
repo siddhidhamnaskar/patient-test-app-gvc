@@ -81,6 +81,8 @@ export default function TestPortalClient({
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<number | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const ttsAudioRef = useRef<HTMLAudioElement | null>(null);
 
   // Active level/screen helpers
   const activeLevel = sortedLevels[levelIndex];
@@ -122,6 +124,11 @@ export default function TestPortalClient({
       };
     });
   }, [activeScreen, images]);
+
+  // Active Screen details
+  const activeQuestion = screenQuestions[questionSlotIndex];
+  const activeScreenName = activeScreen ? activeScreen.name : "Screen";
+  const activeLevelName = activeLevel ? activeLevel.name : "Level";
 
   // Current voice record settings
   const isVoiceRecordEnabled = useMemo(() => {
@@ -184,6 +191,14 @@ export default function TestPortalClient({
 
   // Click on image handler: Records answer and moves forward
   const handleImageClick = (clickedImageId: string, clickedImageName: string) => {
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel(); // Stop reading current question
+    }
+
+    if (ttsAudioRef.current) {
+      ttsAudioRef.current.pause(); // Stop network TTS playback
+    }
+
     if (isRecording) {
       // Automatically stop recording if it's currently running
       stopRecording();
@@ -238,12 +253,80 @@ export default function TestPortalClient({
     return `${m}:${s}`;
   };
 
-  // Play instruction audio from doctor
+  // Play instruction audio from doctor using HTML5 audio ref
   const playPromptAudio = () => {
-    if (!voicePromptUrl) return;
-    const audio = new Audio(voicePromptUrl);
-    audio.play().catch(console.error);
+    if (audioRef.current) {
+      audioRef.current.currentTime = 0;
+      audioRef.current.play().catch(console.error);
+    }
   };
+
+  // Speak question text aloud using Google Translate TTS proxy (falls back to native TTS if offline)
+  const speakQuestion = (text: string) => {
+    if (typeof window !== "undefined") {
+      try {
+        // Cancel native SpeechSynthesis in case it was running
+        if ("speechSynthesis" in window) {
+          window.speechSynthesis.cancel();
+        }
+
+        // Stop any current network TTS audio playing
+        if (ttsAudioRef.current) {
+          ttsAudioRef.current.pause();
+        }
+
+        const cleanText = text.replace(/[*_#`~[\]]/g, "").trim();
+        if (!cleanText) return;
+
+        // Use our local API route proxy (bypasses CORS and Referrer policy blocks)
+        const encodedText = encodeURIComponent(cleanText);
+        const ttsUrl = `/api/tts?text=${encodedText}`;
+
+        if (ttsAudioRef.current) {
+          ttsAudioRef.current.src = ttsUrl;
+          ttsAudioRef.current.currentTime = 0;
+          ttsAudioRef.current.play().catch((err) => {
+            console.warn("Proxy TTS playback failed. Falling back to local SpeechSynthesis:", err);
+            fallbackLocalTTS(cleanText);
+          });
+        } else {
+          fallbackLocalTTS(cleanText);
+        }
+      } catch (err) {
+        console.error("speakQuestion error:", err);
+        const cleanText = text.replace(/[*_#`~[\]]/g, "").trim();
+        fallbackLocalTTS(cleanText);
+      }
+    }
+  };
+
+  // Local fallback offline speech synthesis engine
+  const fallbackLocalTTS = (cleanText: string) => {
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.resume();
+      setTimeout(() => {
+        const utterance = new SpeechSynthesisUtterance(cleanText);
+        utterance.rate = 0.92;
+        utterance.pitch = 1.0;
+        window.speechSynthesis.speak(utterance);
+      }, 50);
+    }
+  };
+
+  // Pre-trigger voice fetching on component mount
+  useEffect(() => {
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.getVoices();
+      if (window.speechSynthesis.onvoiceschanged !== undefined) {
+        window.speechSynthesis.onvoiceschanged = () => {
+          window.speechSynthesis.getVoices();
+        };
+      }
+    }
+  }, []);
+
+
 
   // Render Completed Summary
   if (assessmentCompleted) {
@@ -328,13 +411,44 @@ export default function TestPortalClient({
     );
   }
 
-  // Active Screen details
-  const activeQuestion = screenQuestions[questionSlotIndex];
-  const activeScreenName = activeScreen ? activeScreen.name : "Screen";
-  const activeLevelName = activeLevel ? activeLevel.name : "Level";
+  // Unified helper to play recorded doctor prompt (if it exists) or local TTS voice
+  const playQuestionVoice = () => {
+    if (voicePromptUrl) {
+      playPromptAudio();
+    } else if (activeQuestion) {
+      speakQuestion(activeQuestion.text);
+    }
+  };
+
+  // Automatically read the question aloud (or play recorded voice prompt) when the question slot or screen changes
+  useEffect(() => {
+    if (!activeQuestion || assessmentCompleted) return;
+
+    const autoPlayTimer = setTimeout(() => {
+      playQuestionVoice();
+    }, 450); // slight delay to allow rendering transition
+
+    return () => {
+      clearTimeout(autoPlayTimer);
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
+      if (ttsAudioRef.current) {
+        ttsAudioRef.current.pause();
+      }
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+    };
+  }, [levelIndex, screenIndex, questionSlotIndex, voicePromptUrl, assessmentCompleted]);
+
 
   return (
     <div className="min-h-screen bg-gray-50/50 p-6 font-sans">
+      {voicePromptUrl && (
+        <audio ref={audioRef} src={voicePromptUrl} preload="auto" className="hidden" />
+      )}
+      <audio ref={ttsAudioRef} preload="auto" className="hidden" />
       <div className="mx-auto max-w-5xl space-y-6">
         
         {/* Top Assessment Control Bar */}
@@ -395,9 +509,23 @@ export default function TestPortalClient({
                 </div>
 
                 <div className="space-y-2">
-                  <h3 className="text-lg font-extrabold text-gray-900 whitespace-pre-wrap leading-snug">
-                    {activeQuestion ? activeQuestion.text : "Configure a question for this slot in Admin panel."}
-                  </h3>
+                  <div className="flex items-start justify-between gap-4">
+                    <h3 className="text-lg font-extrabold text-gray-900 whitespace-pre-wrap leading-snug flex-1 animate-in fade-in duration-300">
+                      {activeQuestion ? activeQuestion.text : "Configure a question for this slot in Admin panel."}
+                    </h3>
+                    {activeQuestion && (
+                      <button
+                        type="button"
+                        onClick={playQuestionVoice}
+                        className="group flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-650 hover:bg-teal-100 hover:text-teal-700 active:scale-95 transition-all shadow-sm cursor-pointer"
+                        title="Play question audio"
+                      >
+                        <svg className="h-5 w-5 transition-transform group-hover:scale-105" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
                   <p className="text-xs text-gray-400">
                     Instruct the service user to view the images below and click the one that corresponds to their answer.
                   </p>
