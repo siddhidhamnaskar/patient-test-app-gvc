@@ -433,4 +433,66 @@ export async function saveLevelsAction(levels: LevelMetadata[]) {
   }
 }
 
+// Upload a voice prompt recording locally
+export async function uploadVoicePromptAction(formData: FormData) {
+  await requireAdmin();
+
+  const file = formData.get("file") as File;
+  const levelId = formData.get("levelId") as string;
+  const screenId = formData.get("screenId") as string;
+  const slotIndexStr = formData.get("slotIndex") as string;
+
+  if (!file) {
+    return { success: false, error: "Audio file is required." };
+  }
+  if (!levelId || !screenId || slotIndexStr === undefined) {
+    return { success: false, error: "Missing levelId, screenId, or slotIndex." };
+  }
+
+  const slotIndex = parseInt(slotIndexStr, 10);
+
+  try {
+    const recordingsDir = path.join(process.cwd(), "public", "recordings");
+    if (!fs.existsSync(recordingsDir)) {
+      fs.mkdirSync(recordingsDir, { recursive: true });
+    }
+
+    // Generate unique name per level, screen, slot to avoid conflicts, appending timestamp
+    const filename = `lvl_${levelId}_scr_${screenId}_slot_${slotIndex}_${Date.now()}.webm`;
+    const filePath = path.join(recordingsDir, filename);
+
+    // Save file buffer
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    fs.writeFileSync(filePath, buffer);
+
+    const relativeUrl = `/recordings/${filename}`;
+
+    return { success: true, url: relativeUrl };
+  } catch (error: any) {
+    console.error("Failed to upload voice prompt:", error);
+    return { success: false, error: error.message || "Failed to save audio file locally." };
+  }
+}
+
+// Delete a voice prompt recording file locally
+export async function deleteVoicePromptAction(relativeUrl: string) {
+  await requireAdmin();
+
+  if (!relativeUrl || !relativeUrl.startsWith("/recordings/")) {
+    return { success: false, error: "Invalid recording path." };
+  }
+
+  try {
+    const filePath = path.join(process.cwd(), "public", relativeUrl);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+    return { success: true };
+  } catch (error: any) {
+    console.error("Failed to delete voice prompt:", error);
+    return { success: false, error: error.message || "Failed to delete local audio file." };
+  }
+}
+
 

@@ -12,6 +12,8 @@ export interface ScreenMetadata {
   imageIds?: string[];
   questionId?: string;
   questionIds?: string[];
+  voiceRecordEnabled?: boolean[];
+  voicePromptUrls?: string[];
   order: number;
 }
 

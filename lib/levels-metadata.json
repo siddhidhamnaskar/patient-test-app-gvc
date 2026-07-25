@@ -19,7 +19,13 @@
           "2980",
           "2887"
         ],
-        "order": 1
+        "order": 1,
+        "voiceRecordEnabled": [
+          true
+        ],
+        "voicePromptUrls": [
+          "/recordings/lvl_lvl_1_scr_scr_1784912318661_slot_0_1784990775976.webm"
+        ]
       },
       {
         "id": "scr_1784912396479",

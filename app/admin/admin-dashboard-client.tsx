@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useMemo, useRef } from "react";
+import { useState, useTransition, useMemo, useRef, useEffect } from "react";
 import {
   createUserAction,
   updateUserAction,
@@ -11,6 +11,8 @@ import {
   importQuestionsCSVAction,
   getQuestionsAction,
   saveLevelsAction,
+  uploadVoicePromptAction,
+  deleteVoicePromptAction,
 } from "./actions";
 import { formatUTCDate, formatUTCDateTime } from "@/lib/date-utils";
 
@@ -43,6 +45,8 @@ interface ScreenMetadata {
   imageIds?: string[];
   questionId?: string;
   questionIds?: string[];
+  voiceRecordEnabled?: boolean[];
+  voicePromptUrls?: string[];
   order: number;
 }
 
@@ -63,6 +67,250 @@ interface AdminDashboardClientProps {
 }
 
 type TabType = "users" | "system" | "security" | "images" | "questions" | "tests";
+
+interface VoiceRecorderWidgetProps {
+  levelId: string;
+  screenId: string;
+  slotIndex: number;
+  initialAudioUrl?: string;
+  onSaveAudio: (relativeUrl: string) => void;
+  onDeleteAudio: () => void;
+}
+
+function VoiceRecorderWidget({
+  levelId,
+  screenId,
+  slotIndex,
+  initialAudioUrl = "",
+  onSaveAudio,
+  onDeleteAudio,
+}: VoiceRecorderWidgetProps) {
+  const [isRecording, setIsRecording] = useState(false);
+  const [audioUrl, setAudioUrl] = useState(initialAudioUrl);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const timerRef = useRef<number | null>(null);
+
+  // Sync initialAudioUrl prop with local state when it changes (e.g., switching screens)
+  useEffect(() => {
+    setAudioUrl(initialAudioUrl);
+  }, [initialAudioUrl, levelId, screenId, slotIndex]);
+
+  // Clean up timers on unmount
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) window.clearInterval(timerRef.current);
+    };
+  }, []);
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioChunksRef.current = [];
+      
+      const mediaRecorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+      mediaRecorderRef.current = mediaRecorder;
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        const url = URL.createObjectURL(audioBlob);
+        setAudioUrl(url);
+
+        // Stop all media tracks to release microphone
+        stream.getTracks().forEach((track) => track.stop());
+      };
+
+      setRecordingTime(0);
+      mediaRecorder.start();
+      setIsRecording(true);
+
+      timerRef.current = window.setInterval(() => {
+        setRecordingTime((prev) => prev + 1);
+      }, 1000);
+    } catch (err) {
+      console.error("Microphone access error:", err);
+      alert("Could not access microphone. Please check permissions.");
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      if (timerRef.current) {
+        window.clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    }
+  };
+
+  const saveRecording = async () => {
+    if (audioChunksRef.current.length === 0) return;
+    setIsUploading(true);
+
+    try {
+      const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+      const file = new File([audioBlob], "recording.webm", { type: "audio/webm" });
+
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("levelId", levelId);
+      formData.append("screenId", screenId);
+      formData.append("slotIndex", slotIndex.toString());
+
+      const res = await uploadVoicePromptAction(formData);
+      if (res.success && res.url) {
+        setAudioUrl(res.url);
+        onSaveAudio(res.url);
+      } else {
+        alert(res.error || "Failed to upload recording.");
+      }
+    } catch (err: any) {
+      console.error(err);
+      alert("Error saving recording: " + err.message);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const deleteRecording = async () => {
+    if (!audioUrl) return;
+
+    // If it's a saved recording on the server, delete it
+    if (audioUrl.startsWith("/recordings/")) {
+      const confirmDel = window.confirm("Are you sure you want to delete this recording from the server?");
+      if (!confirmDel) return;
+
+      setIsUploading(true);
+      try {
+        const res = await deleteVoicePromptAction(audioUrl);
+        if (res.success) {
+          setAudioUrl("");
+          onDeleteAudio();
+        } else {
+          alert(res.error || "Failed to delete audio file.");
+        }
+      } catch (err: any) {
+        console.error(err);
+        alert("Error deleting recording: " + err.message);
+      } finally {
+        setIsUploading(false);
+      }
+    } else {
+      // It's a local unsaved blob, just clear it
+      setAudioUrl("");
+      audioChunksRef.current = [];
+    }
+  };
+
+  const formatTime = (secs: number) => {
+    const m = Math.floor(secs / 60).toString().padStart(2, "0");
+    const s = (secs % 60).toString().padStart(2, "0");
+    return `${m}:${s}`;
+  };
+
+  return (
+    <div className="mt-2.5 p-3 rounded-lg border border-dashed border-teal-200 bg-teal-50/20 space-y-2.5">
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-[10px] font-bold text-teal-800 uppercase tracking-wider flex items-center gap-1">
+          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+          </svg>
+          Record Voice Option
+        </span>
+        {isRecording ? (
+          <span className="flex items-center gap-1 text-[10px] font-bold text-red-650 animate-pulse">
+            <span className="h-2 w-2 rounded-full bg-red-600"></span>
+            RECORDING {formatTime(recordingTime)}
+          </span>
+        ) : audioUrl ? (
+          <span className="text-[10px] font-bold text-teal-650 flex items-center gap-1">
+            <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+            </svg>
+            Ready
+          </span>
+        ) : (
+          <span className="text-[10px] text-gray-400">Empty</span>
+        )}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        {!isRecording && !audioUrl && (
+          <button
+            type="button"
+            onClick={startRecording}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-bold rounded-lg border border-red-150 transition-colors cursor-pointer"
+          >
+            <svg className="h-3.5 w-3.5 text-red-600" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z" />
+            </svg>
+            Record Voice
+          </button>
+        )}
+
+        {isRecording && (
+          <button
+            type="button"
+            onClick={stopRecording}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-850 hover:bg-gray-900 text-white text-xs font-bold rounded-lg transition-colors cursor-pointer"
+          >
+            <svg className="h-3.5 w-3.5 text-white" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+            </svg>
+            Stop
+          </button>
+        )}
+
+        {audioUrl && (
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full">
+            <audio src={audioUrl} controls className="h-7 w-full sm:w-48 outline-none" />
+            <div className="flex items-center gap-2 mt-1 sm:mt-0">
+              {audioChunksRef.current.length > 0 && !audioUrl.startsWith("/recordings/") && (
+                <button
+                  type="button"
+                  disabled={isUploading}
+                  onClick={saveRecording}
+                  className="px-2.5 py-1.5 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white text-xs font-bold rounded-lg transition-colors cursor-pointer flex items-center gap-1"
+                >
+                  {isUploading ? (
+                    <span className="h-3 w-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                  ) : (
+                    <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                  Save Audio
+                </button>
+              )}
+
+              <button
+                type="button"
+                disabled={isUploading}
+                onClick={deleteRecording}
+                className="p-1.5 text-red-650 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                title="Delete audio"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function AdminDashboardClient({
   initialUsers,
@@ -652,7 +900,59 @@ export default function AdminDashboardClient({
       currentQuestionIds.push("");
     }
     currentQuestionIds[questionIndex] = newQuestionId;
-    handleUpdateScreen(screen.id, { questionIds: currentQuestionIds });
+    
+    // Reset voice recording toggle for this slot if it's cleared or changed
+    let currentVoiceRecord = screen.voiceRecordEnabled ? [...screen.voiceRecordEnabled] : [];
+    while (currentVoiceRecord.length <= questionIndex) {
+      currentVoiceRecord.push(false);
+    }
+    currentVoiceRecord[questionIndex] = false;
+
+    // Reset saved voice prompt URL for this slot as well
+    let currentVoiceUrls = screen.voicePromptUrls ? [...screen.voicePromptUrls] : [];
+    while (currentVoiceUrls.length <= questionIndex) {
+      currentVoiceUrls.push("");
+    }
+    const previousUrl = currentVoiceUrls[questionIndex];
+    currentVoiceUrls[questionIndex] = "";
+
+    // Trigger delete action for old prompt audio file in the background if it exists
+    if (previousUrl && previousUrl.startsWith("/recordings/")) {
+      deleteVoicePromptAction(previousUrl).catch(console.error);
+    }
+
+    handleUpdateScreen(screen.id, { 
+      questionIds: currentQuestionIds,
+      voiceRecordEnabled: currentVoiceRecord,
+      voicePromptUrls: currentVoiceUrls
+    });
+  };
+
+  const handleUpdateScreenVoiceRecord = (screen: ScreenMetadata, questionIndex: number, enabled: boolean) => {
+    let currentVoiceRecord = screen.voiceRecordEnabled ? [...screen.voiceRecordEnabled] : [];
+    while (currentVoiceRecord.length <= questionIndex) {
+      currentVoiceRecord.push(false);
+    }
+    currentVoiceRecord[questionIndex] = enabled;
+    handleUpdateScreen(screen.id, { voiceRecordEnabled: currentVoiceRecord });
+  };
+
+  const handleUpdateScreenVoicePromptUrl = (screen: ScreenMetadata, questionIndex: number, newVoiceUrl: string) => {
+    let currentVoiceUrls = screen.voicePromptUrls ? [...screen.voicePromptUrls] : [];
+    while (currentVoiceUrls.length <= questionIndex) {
+      currentVoiceUrls.push("");
+    }
+    currentVoiceUrls[questionIndex] = newVoiceUrl;
+    handleUpdateScreen(screen.id, { voicePromptUrls: currentVoiceUrls });
+  };
+
+  const handleDeleteScreenVoicePromptUrl = (screen: ScreenMetadata, questionIndex: number) => {
+    let currentVoiceUrls = screen.voicePromptUrls ? [...screen.voicePromptUrls] : [];
+    while (currentVoiceUrls.length <= questionIndex) {
+      currentVoiceUrls.push("");
+    }
+    currentVoiceUrls[questionIndex] = "";
+    handleUpdateScreen(screen.id, { voicePromptUrls: currentVoiceUrls });
   };
 
   const handleDeleteScreen = async (screenId: string) => {
@@ -2096,26 +2396,60 @@ export default function AdminDashboardClient({
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             {[0, 1, 2, 3].map((idx) => {
                               const currentVal = activeQuestionIds[idx] || "";
+                              const voiceEnabled = screen.voiceRecordEnabled?.[idx] || false;
                               return (
-                                <div key={idx} className="space-y-1.5 bg-gray-50/50 p-3 rounded-xl border border-gray-200/60">
-                                  <div className="flex items-center justify-between">
-                                    <span className="block text-[10px] text-gray-400 font-bold uppercase tracking-wider">Question Slot {idx + 1}</span>
-                                    {currentVal && (
-                                      <span className="inline-flex h-2 w-2 rounded-full bg-teal-500"></span>
-                                    )}
+                                <div key={idx} className="space-y-2 bg-gray-50/50 p-3 rounded-xl border border-gray-200/60 flex flex-col justify-between">
+                                  <div className="space-y-1.5">
+                                    <div className="flex items-center justify-between">
+                                      <span className="block text-[10px] text-gray-400 font-bold uppercase tracking-wider">Question Slot {idx + 1}</span>
+                                      {currentVal && (
+                                        <span className="inline-flex h-2 w-2 rounded-full bg-teal-500"></span>
+                                      )}
+                                    </div>
+                                    <select
+                                      value={currentVal}
+                                      onChange={(e) => handleUpdateScreenQuestion(screen, idx, e.target.value)}
+                                      className="w-full rounded-lg border border-gray-200 px-3 py-1.5 text-xs outline-none transition-all focus:border-teal-500 focus:ring-1 focus:ring-teal-500/10 bg-white font-medium cursor-pointer"
+                                    >
+                                      <option value="">-- Empty --</option>
+                                      {questions.map((q) => (
+                                        <option key={q.id} value={q.id}>
+                                          ({q.id}) {q.text.length > 45 ? q.text.substring(0, 45) + "..." : q.text}
+                                        </option>
+                                      ))}
+                                    </select>
                                   </div>
-                                  <select
-                                    value={currentVal}
-                                    onChange={(e) => handleUpdateScreenQuestion(screen, idx, e.target.value)}
-                                    className="w-full rounded-lg border border-gray-200 px-3 py-1.5 text-xs outline-none transition-all focus:border-teal-500 focus:ring-1 focus:ring-teal-500/10 bg-white font-medium cursor-pointer"
-                                  >
-                                    <option value="">-- Empty --</option>
-                                    {questions.map((q) => (
-                                      <option key={q.id} value={q.id}>
-                                        ({q.id}) {q.text.length > 45 ? q.text.substring(0, 45) + "..." : q.text}
-                                      </option>
-                                    ))}
-                                  </select>
+
+                                  {/* Voice recording toggle and recorder */}
+                                  {currentVal && (
+                                    <div className="mt-1.5 space-y-2">
+                                      <label className="flex items-center gap-2 text-[11px] text-gray-650 cursor-pointer font-medium select-none">
+                                        <input
+                                          type="checkbox"
+                                          checked={voiceEnabled}
+                                          onChange={(e) => handleUpdateScreenVoiceRecord(screen, idx, e.target.checked)}
+                                          className="h-3.5 w-3.5 rounded border-gray-300 text-teal-600 focus:ring-teal-500 cursor-pointer"
+                                        />
+                                        <span className="flex items-center gap-1">
+                                          <svg className="h-3.5 w-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                                          </svg>
+                                          Enable Voice Recording
+                                        </span>
+                                      </label>
+
+                                      {voiceEnabled && selectedLevelId && (
+                                        <VoiceRecorderWidget
+                                          levelId={selectedLevelId}
+                                          screenId={screen.id}
+                                          slotIndex={idx}
+                                          initialAudioUrl={screen.voicePromptUrls?.[idx] || ""}
+                                          onSaveAudio={(url) => handleUpdateScreenVoicePromptUrl(screen, idx, url)}
+                                          onDeleteAudio={() => handleDeleteScreenVoicePromptUrl(screen, idx)}
+                                        />
+                                      )}
+                                    </div>
+                                  )}
                                 </div>
                               );
                             })}
@@ -2129,13 +2463,42 @@ export default function AdminDashboardClient({
                                 {activeQuestionIds.map((qId, idx) => {
                                   const qItem = questions.find(q => q.id === qId);
                                   if (!qItem) return null;
+                                  const voiceEnabled = screen.voiceRecordEnabled?.[idx] || false;
+                                  const voiceUrl = screen.voicePromptUrls?.[idx] || "";
                                   return (
                                     <div key={qId + "_" + idx} className="p-3 rounded-xl bg-gray-50 border border-gray-150 flex items-start gap-2.5 text-[11px] shadow-2xs">
                                       <span className="bg-teal-100 text-teal-800 font-mono font-extrabold h-5 w-5 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
                                         #{idx + 1}
                                       </span>
-                                      <div className="space-y-0.5">
-                                        <span className="text-[9px] font-mono font-bold text-gray-400 tracking-wider uppercase block">{qItem.id}</span>
+                                      <div className="space-y-1 flex-1">
+                                        <div className="flex items-center justify-between gap-2">
+                                          <span className="text-[9px] font-mono font-bold text-gray-400 tracking-wider uppercase block">{qItem.id}</span>
+                                          {voiceEnabled && (
+                                            <div className="flex items-center gap-1.5">
+                                              {voiceUrl && (
+                                                <button
+                                                  type="button"
+                                                  onClick={() => {
+                                                    const audio = new Audio(voiceUrl);
+                                                    audio.play().catch(e => console.error(e));
+                                                  }}
+                                                  className="p-1 hover:bg-gray-200 rounded-full transition-colors cursor-pointer flex items-center justify-center"
+                                                  title="Play Recorded Prompt"
+                                                >
+                                                  <svg className="h-3.5 w-3.5 text-teal-650" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                                                  </svg>
+                                                </button>
+                                              )}
+                                              <span className="inline-flex items-center gap-1 text-[9px] font-bold text-red-700 bg-red-50 border border-red-100 rounded px-1.5 py-0.5 select-none animate-pulse">
+                                                <svg className="h-2.5 w-2.5 text-red-650" fill="currentColor" viewBox="0 0 24 24">
+                                                  <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z" />
+                                                </svg>
+                                                Voice Record
+                                              </span>
+                                            </div>
+                                          )}
+                                        </div>
                                         <p className="text-gray-700 italic leading-snug">
                                           "{qItem.text}"
                                         </p>
