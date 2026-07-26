@@ -1,9 +1,15 @@
 import fs from "fs";
 import path from "path";
 
-const METADATA_PATH = path.join(process.cwd(), "lib", "images-metadata.json");
-const QUESTIONS_PATH = path.join(process.cwd(), "lib", "questions-metadata.json");
-const LEVELS_PATH = path.join(process.cwd(), "lib", "levels-metadata.json");
+const METADATA_PATH = process.env.NODE_ENV === "production"
+  ? "/tmp/images-metadata.json"
+  : path.join(process.cwd(), "lib", "images-metadata.json");
+const QUESTIONS_PATH = process.env.NODE_ENV === "production"
+  ? "/tmp/questions-metadata.json"
+  : path.join(process.cwd(), "lib", "questions-metadata.json");
+const LEVELS_PATH = process.env.NODE_ENV === "production"
+  ? "/tmp/levels-metadata.json"
+  : path.join(process.cwd(), "lib", "levels-metadata.json");
 
 export interface ScreenMetadata {
   id: string;
@@ -44,6 +50,16 @@ function ensureStoreExists() {
     fs.mkdirSync(dir, { recursive: true });
   }
   if (!fs.existsSync(METADATA_PATH)) {
+    const bundledPath = path.join(process.cwd(), "lib", "images-metadata.json");
+    if (fs.existsSync(bundledPath)) {
+      try {
+        const content = fs.readFileSync(bundledPath, "utf-8");
+        fs.writeFileSync(METADATA_PATH, content, "utf-8");
+        return;
+      } catch (err) {
+        console.error("Failed to copy bundled images to /tmp:", err);
+      }
+    }
     fs.writeFileSync(METADATA_PATH, JSON.stringify([], null, 2), "utf-8");
   }
 }
@@ -55,6 +71,16 @@ function ensureQuestionsStoreExists() {
     fs.mkdirSync(dir, { recursive: true });
   }
   if (!fs.existsSync(QUESTIONS_PATH)) {
+    const bundledPath = path.join(process.cwd(), "lib", "questions-metadata.json");
+    if (fs.existsSync(bundledPath)) {
+      try {
+        const content = fs.readFileSync(bundledPath, "utf-8");
+        fs.writeFileSync(QUESTIONS_PATH, content, "utf-8");
+        return;
+      } catch (err) {
+        console.error("Failed to copy bundled questions to /tmp:", err);
+      }
+    }
     fs.writeFileSync(QUESTIONS_PATH, JSON.stringify([], null, 2), "utf-8");
   }
 }
@@ -151,6 +177,16 @@ function ensureLevelsStoreExists() {
     fs.mkdirSync(dir, { recursive: true });
   }
   if (!fs.existsSync(LEVELS_PATH)) {
+    const bundledPath = path.join(process.cwd(), "lib", "levels-metadata.json");
+    if (fs.existsSync(bundledPath)) {
+      try {
+        const content = fs.readFileSync(bundledPath, "utf-8");
+        fs.writeFileSync(LEVELS_PATH, content, "utf-8");
+        return;
+      } catch (err) {
+        console.error("Failed to copy bundled levels to /tmp:", err);
+      }
+    }
     const defaultLevels: LevelMetadata[] = [
       { id: "lvl_1", name: "Level 1", order: 1 },
       { id: "lvl_2", name: "Level 2", order: 2 },
