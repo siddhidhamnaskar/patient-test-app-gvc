@@ -414,7 +414,7 @@ export default function HomeDashboardClient({
 
                   {/* Actions bar */}
                   <div className="mt-5 border-t border-gray-50 pt-4 flex items-center justify-end gap-2">
-                    <button
+                    {/* <button
                       type="button"
                       className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-bold text-gray-700 shadow-sm transition-all hover:bg-gray-50 hover:text-gray-900 active:scale-98 cursor-pointer"
                     >
@@ -423,7 +423,7 @@ export default function HomeDashboardClient({
                         <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                       </svg>
                       View Profile
-                    </button>
+                    </button> */}
                     
                     <Link
                       href={`/test/${user.id}`}

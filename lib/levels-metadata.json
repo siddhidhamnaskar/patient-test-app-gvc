@@ -1,102 +1,93 @@
 [
   {
-    "id": "lvl_1",
+    "id": "lvl_1785093321925",
     "name": "Level 1",
     "order": 1,
     "screens": [
       {
-        "id": "scr_1784912318661",
+        "id": "scr_1785093329352",
         "name": "Screen 1",
         "imageIds": [
-          "img_1782033652326_336",
           "img_1782033652352_339",
-          "img_1782033652335_337",
-          "img_1782033652319_335"
+          "img_1782033652345_338",
+          "",
+          ""
         ],
         "questionIds": [
-          "2872",
-          "2879",
-          "2980",
-          "2887"
+          "2876",
+          "",
+          "",
+          ""
         ],
         "order": 1,
         "voiceRecordEnabled": [
-          true,
           false
         ],
         "voicePromptUrls": [
-          "/recordings/lvl_lvl_1_scr_scr_1784912318661_slot_0_1785054236386.webm",
           ""
         ]
       },
       {
-        "id": "scr_1784912396479",
+        "id": "scr_1785093391747",
         "name": "Screen 2",
         "imageIds": [
-          "img_1782033652244_325",
-          "",
-          "",
-          ""
+          "img_1782033652335_337",
+          "img_1782033652326_336",
+          "img_1782033652319_335",
+          "img_1782033652313_334"
         ],
         "questionIds": [
-          "2872",
-          "2887",
+          "2878",
+          "2883",
+          "2879",
+          "2877"
+        ],
+        "order": 2,
+        "voiceRecordEnabled": [
+          false,
+          false,
+          false,
+          false
+        ],
+        "voicePromptUrls": [
           "",
-          ""
-        ],
-        "order": 2
-      },
-      {
-        "id": "scr_1784913562146",
-        "name": "Screen3",
-        "imageIds": [
-          "img_1782033652244_325",
-          "img_1782033652215_323",
-          "img_1782033652215_323",
-          "img_1782033652204_322"
-        ],
-        "questionIds": [
-          "2872",
           "",
           "",
           ""
-        ],
-        "order": 3
+        ]
       }
     ]
   },
   {
-    "id": "lvl_2",
+    "id": "lvl_1785093492173",
     "name": "Level 2",
     "order": 2,
     "screens": [
       {
-        "id": "scr_1784913593001",
+        "id": "scr_1785093506656",
         "name": "Screen 1",
         "imageIds": [
-          "",
-          "",
-          "",
-          ""
+          "img_1782033651814_282",
+          "img_1782033651801_281",
+          "img_1782033651781_279",
+          "img_1782033651792_280"
         ],
         "questionIds": [
-          "",
-          "",
+          "2823",
+          "2717",
           "",
           ""
         ],
-        "order": 1
+        "order": 1,
+        "voiceRecordEnabled": [
+          false,
+          false
+        ],
+        "voicePromptUrls": [
+          "",
+          ""
+        ]
       }
     ]
-  },
-  {
-    "id": "lvl_3",
-    "name": "Level 3",
-    "order": 3
-  },
-  {
-    "id": "lvl_1784902994770",
-    "name": "Level 4",
-    "order": 4
   }
 ]
