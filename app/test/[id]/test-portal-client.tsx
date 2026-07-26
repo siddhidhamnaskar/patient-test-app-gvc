@@ -558,7 +558,14 @@ export default function TestPortalClient({
                 ) : (
                   <div className="rounded-2xl border border-dashed border-gray-300 bg-white py-12 text-center text-gray-400">
                     <p className="text-xs font-semibold">No images configured for this Screen in Admin panel.</p>
+                    <Link
+                                  href="/"
+                                  className="bg-teal-400 mt-4 inline-flex items-center gap-1.5 rounded-xl bg-teal-650 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-teal-600"
+                                >
+                                  Return to Dashboard
+                                </Link>
                   </div>
+
                 )}
               </div>
 
@@ -692,7 +699,7 @@ export default function TestPortalClient({
             </p>
             <Link
               href="/"
-              className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-teal-650 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-teal-600"
+              className="bg-teal-400 mt-4 inline-flex items-center gap-1.5 rounded-xl bg-teal-650 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-teal-600"
             >
               Return to Dashboard
             </Link>

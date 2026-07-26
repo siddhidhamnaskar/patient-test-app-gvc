@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition, useMemo, useRef, useEffect } from "react";
+import Link from "next/link";
 import {
   createUserAction,
   updateUserAction,
@@ -1124,7 +1125,7 @@ export default function AdminDashboardClient({
               >
                 Test Settings
               </button>
-              <button
+              {/* <button
                 onClick={() => setActiveTab("system")}
                 className={`flex-1 min-w-[110px] text-center rounded-lg py-2.5 text-xs font-bold transition-all ${
                   activeTab === "system"
@@ -1133,8 +1134,8 @@ export default function AdminDashboardClient({
                 }`}
               >
                 System Config
-              </button>
-              <button
+              </button> */}
+              {/* <button
                 onClick={() => setActiveTab("security")}
                 className={`flex-1 min-w-[110px] text-center rounded-lg py-2.5 text-xs font-bold transition-all ${
                   activeTab === "security"
@@ -1143,7 +1144,7 @@ export default function AdminDashboardClient({
                 }`}
               >
                 Security Settings
-              </button>
+              </button> */}
             </div>
           </div>
 
@@ -1206,7 +1207,7 @@ export default function AdminDashboardClient({
               Test Settings
             </button>
 
-            <button
+            {/* <button
               onClick={() => setActiveTab("system")}
               className={`w-full flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-all ${
                 activeTab === "system"
@@ -1219,9 +1220,9 @@ export default function AdminDashboardClient({
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
               System Config
-            </button>
+            </button> */}
 
-            <button
+            {/* <button
               onClick={() => setActiveTab("security")}
               className={`w-full flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-all ${
                 activeTab === "security"
@@ -1233,7 +1234,7 @@ export default function AdminDashboardClient({
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
               </svg>
               Security Settings
-            </button>
+            </button> */}
           </div>
         </div>
 
@@ -1528,6 +1529,12 @@ export default function AdminDashboardClient({
                       <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
                     <p className="mt-2 text-sm font-semibold">No images uploaded yet.</p>
+                       <Link
+                                  href="/"
+                                  className="bg-teal-400 mt-4 inline-flex items-center gap-1.5 rounded-xl bg-teal-650 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-teal-600"
+                                >
+                                  Return to Dashboard
+                                </Link>
                   </div>
                 )}
               </div>
