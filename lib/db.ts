@@ -206,8 +206,10 @@ const prismaDb = globalForPrisma.prisma || dbInstance;
 
 export const db = new Proxy(prismaDb, {
   get(target, prop) {
-    if (prop === "user" && process.env.NODE_ENV !== "production") {
-      return new MockUserClient();
+    if (prop === "user") {
+      // if (!process.env.DATABASE_URL || process.env.NODE_ENV !== "production") {
+        return new MockUserClient();
+      // }
     }
     return Reflect.get(target, prop);
   },
