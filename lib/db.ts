@@ -24,7 +24,9 @@ if (typeof window === "undefined") {
 }
 
 // --- Local File User Store Configuration ---
-const USERS_PATH = path.join(process.cwd(), "lib", "users-metadata.json");
+const USERS_PATH = process.env.NODE_ENV === "production"
+  ? "/tmp/users-metadata.json"
+  : path.join(process.cwd(), "lib", "users-metadata.json");
 
 export interface User {
   id: number;
@@ -52,6 +54,18 @@ function ensureStoreExists() {
     fs.mkdirSync(dir, { recursive: true });
   }
   if (!fs.existsSync(USERS_PATH)) {
+    // In production, try to copy initial data from bundled lib/users-metadata.json if it exists
+    const bundledPath = path.join(process.cwd(), "lib", "users-metadata.json");
+    if (fs.existsSync(bundledPath)) {
+      try {
+        const content = fs.readFileSync(bundledPath, "utf-8");
+        fs.writeFileSync(USERS_PATH, content, "utf-8");
+        return;
+      } catch (err) {
+        console.error("Failed to copy bundled users to /tmp:", err);
+      }
+    }
+
     const defaultUsers: JSONUser[] = [
       {
         id: 1,
@@ -207,9 +221,7 @@ const prismaDb = globalForPrisma.prisma || dbInstance;
 export const db = new Proxy(prismaDb, {
   get(target, prop) {
     if (prop === "user") {
-      // if (!process.env.DATABASE_URL || process.env.NODE_ENV !== "production") {
-        return new MockUserClient();
-      // }
+      return new MockUserClient();
     }
     return Reflect.get(target, prop);
   },
