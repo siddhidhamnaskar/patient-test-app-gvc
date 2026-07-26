@@ -164,6 +164,41 @@ class MockUserClient {
     writeUsers(newUsers);
     return deletedUser;
   }
+
+  async upsert(args: {
+    where: { email: string };
+    update: { role?: string; name?: string };
+    create: { email: string; name: string; role: string; createdBy?: string | null };
+  }) {
+    const users = readUsers();
+    const idx = users.findIndex((u) => u.email.toLowerCase() === args.where.email.toLowerCase());
+    if (idx !== -1) {
+      const user = users[idx];
+      const updatedUser: User = {
+        ...user,
+        name: args.update.name !== undefined ? args.update.name : user.name,
+        role: args.update.role !== undefined ? args.update.role : user.role,
+        updatedAt: new Date(),
+      };
+      users[idx] = updatedUser;
+      writeUsers(users);
+      return updatedUser;
+    } else {
+      const maxId = users.reduce((max, u) => (u.id > max ? u.id : max), 0);
+      const newUser: User = {
+        id: maxId + 1,
+        name: args.create.name,
+        email: args.create.email,
+        role: args.create.role,
+        createdBy: args.create.createdBy || null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      users.push(newUser);
+      writeUsers(users);
+      return newUser;
+    }
+  }
 }
 
 // Proxy/wrap dbInstance but override `user` with our local mock
@@ -171,7 +206,7 @@ const prismaDb = globalForPrisma.prisma || dbInstance;
 
 export const db = new Proxy(prismaDb, {
   get(target, prop) {
-    if (prop === "user") {
+    if (prop === "user" && process.env.NODE_ENV !== "production") {
       return new MockUserClient();
     }
     return Reflect.get(target, prop);

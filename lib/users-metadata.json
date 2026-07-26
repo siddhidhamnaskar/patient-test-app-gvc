@@ -7,5 +7,14 @@
     "createdBy": null,
     "createdAt": "2026-07-26T13:00:00.000Z",
     "updatedAt": "2026-07-26T13:00:00.000Z"
+  },
+  {
+    "id": 2,
+    "name": "Vinay Chaddha",
+    "email": "vinay@gvc.in",
+    "role": "superadmin",
+    "createdBy": "siddhidhamnaskar64@gmail.com",
+    "createdAt": "2026-07-26T16:22:48.407Z",
+    "updatedAt": "2026-07-26T16:22:48.407Z"
   }
 ]
