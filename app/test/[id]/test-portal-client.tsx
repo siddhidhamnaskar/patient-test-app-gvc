@@ -326,7 +326,36 @@ export default function TestPortalClient({
     }
   }, []);
 
+  // Unified helper to play recorded doctor prompt (if it exists) or local TTS voice
+  const playQuestionVoice = () => {
+    if (voicePromptUrl) {
+      playPromptAudio();
+    } else if (activeQuestion) {
+      speakQuestion(activeQuestion.text);
+    }
+  };
 
+  // Automatically read the question aloud (or play recorded voice prompt) when the question slot or screen changes
+  useEffect(() => {
+    if (!activeQuestion || assessmentCompleted) return;
+
+    const autoPlayTimer = setTimeout(() => {
+      playQuestionVoice();
+    }, 450); // slight delay to allow rendering transition
+
+    return () => {
+      clearTimeout(autoPlayTimer);
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
+      if (ttsAudioRef.current) {
+        ttsAudioRef.current.pause();
+      }
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+    };
+  }, [levelIndex, screenIndex, questionSlotIndex, voicePromptUrl, assessmentCompleted]);
 
   // Render Completed Summary
   if (assessmentCompleted) {
@@ -360,8 +389,7 @@ export default function TestPortalClient({
                     <th className="px-6 py-3">Level / Screen</th>
                     <th className="px-6 py-3">Question Text</th>
                     <th className="px-6 py-3">Selected Asset</th>
-                    <th className="px-6 py-3">Audio Response</th>
-                    <th className="px-6 py-3 text-right">Time</th>
+                    
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 text-gray-700">
@@ -377,17 +405,8 @@ export default function TestPortalClient({
                           {res.clickedImageName}
                         </span>
                       </td>
-                      <td className="px-6 py-3.5">
-                        {res.voiceRecorded ? (
-                          <span className="inline-flex items-center gap-1 text-teal-600 font-bold">
-                            <span className="h-1.5 w-1.5 rounded-full bg-teal-500"></span>
-                            Recorded
-                          </span>
-                        ) : (
-                          <span className="text-gray-300">None</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-3.5 text-right font-mono text-gray-400">{res.timestamp}</td>
+                     
+                      
                     </tr>
                   ))}
                 </tbody>
@@ -398,7 +417,7 @@ export default function TestPortalClient({
           <div className="flex justify-center">
             <Link
               href="/"
-              className="inline-flex items-center gap-2 rounded-xl bg-teal-600 px-6 py-3 text-sm font-semibold text-white shadow-md hover:bg-teal-500 transition-all active:scale-95"
+              className="bg-teal-400 inline-flex items-center gap-2 rounded-xl bg-teal-650 px-6 py-3 text-sm font-semibold text-white shadow-md hover:bg-teal-600 transition-all active:scale-95"
             >
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
@@ -410,37 +429,6 @@ export default function TestPortalClient({
       </div>
     );
   }
-
-  // Unified helper to play recorded doctor prompt (if it exists) or local TTS voice
-  const playQuestionVoice = () => {
-    if (voicePromptUrl) {
-      playPromptAudio();
-    } else if (activeQuestion) {
-      speakQuestion(activeQuestion.text);
-    }
-  };
-
-  // Automatically read the question aloud (or play recorded voice prompt) when the question slot or screen changes
-  useEffect(() => {
-    if (!activeQuestion || assessmentCompleted) return;
-
-    const autoPlayTimer = setTimeout(() => {
-      playQuestionVoice();
-    }, 450); // slight delay to allow rendering transition
-
-    return () => {
-      clearTimeout(autoPlayTimer);
-      if (typeof window !== "undefined" && "speechSynthesis" in window) {
-        window.speechSynthesis.cancel();
-      }
-      if (ttsAudioRef.current) {
-        ttsAudioRef.current.pause();
-      }
-      if (audioRef.current) {
-        audioRef.current.pause();
-      }
-    };
-  }, [levelIndex, screenIndex, questionSlotIndex, voicePromptUrl, assessmentCompleted]);
 
 
   return (
