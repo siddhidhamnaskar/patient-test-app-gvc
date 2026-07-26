@@ -24,7 +24,7 @@ if (typeof window === "undefined") {
 }
 
 // --- Local File User Store Configuration ---
-const USERS_PATH = process.env.NODE_ENV === "production"
+const USERS_PATH = process.env.VERCEL
   ? "/tmp/users-metadata.json"
   : path.join(process.cwd(), "lib", "users-metadata.json");
 
