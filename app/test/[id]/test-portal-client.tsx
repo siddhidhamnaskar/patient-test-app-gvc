@@ -486,7 +486,7 @@ export default function TestPortalClient({
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             
             {/* Screen Interaction Column */}
-            <div className="md:col-span-2 space-y-6">
+            <div className="md:col-span-3 space-y-6">
               {/* Question card */}
               <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm space-y-4">
                 <div className="flex items-center justify-between border-b border-gray-100 pb-3">
@@ -537,25 +537,20 @@ export default function TestPortalClient({
                 <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Selection Cards</h4>
                 
                 {screenImages.length > 0 ? (
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-wrap gap-4 justify-center">
                     {screenImages.map((img) => (
                       <button
                         key={img.id}
                         type="button"
                         onClick={() => handleImageClick(img.id, img.name)}
-                        className="group overflow-hidden rounded-2xl border border-gray-200 bg-white p-2.5 text-left shadow-sm hover:shadow-md hover:border-teal-400 active:scale-[0.99] transition-all cursor-pointer flex flex-col gap-2"
+                        className="group aspect-square w-[140px] sm:w-[180px] overflow-hidden rounded-2xl border border-gray-200 bg-white p-2.5 shadow-sm hover:shadow-md hover:border-teal-400 active:scale-[0.99] transition-all cursor-pointer flex items-center justify-center"
                       >
-                        <div className="aspect-video relative overflow-hidden rounded-xl bg-gray-100">
+                        <div className="aspect-square w-full h-full relative overflow-hidden rounded-xl bg-gray-100">
                           <img
                             src={img.url}
                             alt={img.name}
                             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                           />
-                        </div>
-                        <div className="px-1.5 pb-1">
-                          <span className="font-bold text-xs text-gray-900 truncate block group-hover:text-teal-650 transition-colors">
-                            {img.name}
-                          </span>
                         </div>
                       </button>
                     ))}
@@ -570,14 +565,14 @@ export default function TestPortalClient({
             </div>
 
             {/* Sidebar info / Speech recording Column */}
-            <div className="space-y-6">
-              {/* Progress Panel */}
+            {/* <div className="space-y-6">
+            
               <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm space-y-4.5">
                 <h4 className="text-xs font-bold text-gray-800 uppercase tracking-wider border-b border-gray-100 pb-2">
                   Assessment Progress
                 </h4>
                 
-                {/* Level indicators */}
+              
                 <div className="space-y-3.5 text-xs">
                   <div>
                     <div className="flex justify-between font-semibold text-gray-500 mb-1">
@@ -627,7 +622,7 @@ export default function TestPortalClient({
                 </div>
               </div>
 
-              {/* Voice record widget if configured */}
+             
               {isVoiceRecordEnabled && (
                 <div className="rounded-2xl border border-dashed border-teal-200 bg-teal-50/15 p-5 shadow-sm space-y-4">
                   <div className="flex items-center justify-between border-b border-teal-100 pb-2">
@@ -686,7 +681,7 @@ export default function TestPortalClient({
                 </div>
               )}
 
-            </div>
+            </div> */}
 
           </div>
         ) : (
