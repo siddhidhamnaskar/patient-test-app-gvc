@@ -34,5 +34,14 @@
     "createdBy": "siddhidhamnaskar64@gmail.com",
     "createdAt": "2026-07-27T08:10:27.380Z",
     "updatedAt": "2026-07-27T08:10:27.380Z"
+  },
+  {
+    "id": 6,
+    "name": "Siddhi D",
+    "email": "siddhikd1@gmail.com",
+    "role": "admin",
+    "createdBy": "siddhidhamnaskar64@gmail.com",
+    "createdAt": "2026-07-27T12:52:15.127Z",
+    "updatedAt": "2026-07-27T12:52:15.127Z"
   }
 ]
