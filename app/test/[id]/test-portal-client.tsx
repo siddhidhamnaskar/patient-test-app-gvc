@@ -441,27 +441,27 @@ export default function TestPortalClient({
 
 
   return (
-    <div className="min-h-screen bg-gray-50/50 p-6 font-sans">
+    <div className="h-screen max-h-screen overflow-hidden bg-gray-50/50 p-4 sm:p-5 font-sans flex flex-col">
       {voicePromptUrl && (
         <audio ref={audioRef} src={voicePromptUrl} preload="auto" className="hidden" />
       )}
       <audio ref={ttsAudioRef} preload="auto" className="hidden" />
-      <div className="mx-auto max-w-5xl space-y-6">
+      <div className="mx-auto w-full max-w-4xl h-full flex flex-col gap-3 overflow-hidden">
         
         {/* Top Assessment Control Bar */}
-        <div className="flex items-center justify-between border-b border-gray-200 bg-white rounded-2xl p-4.5 shadow-sm">
-          <div className="flex items-center gap-4">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-teal-500 to-emerald-600 text-white font-bold text-sm">
+        <div className="flex items-center justify-between border-b border-gray-200 bg-white rounded-2xl p-3 shadow-sm shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-teal-500 to-emerald-600 text-white font-bold text-xs">
               {serviceUser.name.split(" ").map(n => n[0]).slice(0, 2).join("")}
             </div>
             <div>
-              <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider">Testing Candidate</span>
-              <h2 className="text-md font-bold text-gray-800">{serviceUser.name}</h2>
+              <span className="block text-[9px] font-bold text-gray-400 uppercase tracking-wider">Testing Candidate</span>
+              <h2 className="text-sm font-bold text-gray-800">{serviceUser.name}</h2>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            <span className="hidden sm:inline-flex items-center rounded-full bg-teal-50 px-2.5 py-1 text-xs font-semibold text-teal-800 ring-1 ring-inset ring-teal-600/20">
+            <span className="inline-flex items-center rounded-full bg-teal-50 px-2.5 py-0.5 text-[10px] font-semibold text-teal-800 ring-1 ring-inset ring-teal-600/20">
               {activeLevelName}
             </span>
             <Link
@@ -480,13 +480,13 @@ export default function TestPortalClient({
 
         {/* Diagnostic Testing Area */}
         {activeScreen ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="flex-1 flex flex-col gap-3 min-h-0 overflow-hidden">
             
             {/* Screen Interaction Column */}
-            <div className="md:col-span-3 space-y-6">
+            <div className="flex-1 flex flex-col gap-3 min-h-0 overflow-hidden">
               {/* Question card */}
-              <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm space-y-4">
-                <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+              <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm space-y-2 shrink-0">
+                <div className="flex items-center justify-between border-b border-gray-100 pb-1.5">
                   <span className="text-[10px] font-bold text-teal-650 uppercase tracking-wider">
                     {activeScreenName} — Question slot {questionSlotIndex + 1} of {screenQuestions.length}
                   </span>
@@ -494,7 +494,7 @@ export default function TestPortalClient({
                   {voicePromptUrl && (
                     <button
                       onClick={playPromptAudio}
-                      className="inline-flex items-center gap-1 rounded-lg bg-teal-50 px-2 py-1 text-[10px] font-bold text-teal-700 hover:bg-teal-100 cursor-pointer transition-colors"
+                      className="inline-flex items-center gap-1 rounded-lg bg-teal-50 px-2 py-0.5 text-[10px] font-bold text-teal-700 hover:bg-teal-100 cursor-pointer transition-colors"
                       title="Play doctor prompt"
                     >
                       <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
@@ -505,62 +505,56 @@ export default function TestPortalClient({
                   )}
                 </div>
 
-                <div className="space-y-2">
-                  <div className="flex items-start justify-between gap-4">
-                    <h3 className="text-lg font-extrabold text-gray-900 whitespace-pre-wrap leading-snug flex-1 animate-in fade-in duration-300">
-                      {activeQuestion ? activeQuestion.text : "Configure a question for this slot in Admin panel."}
-                    </h3>
-                    {activeQuestion && (
-                      <button
-                        type="button"
-                        onClick={playQuestionVoice}
-                        className="group flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-650 hover:bg-teal-100 hover:text-teal-700 active:scale-95 transition-all shadow-sm cursor-pointer"
-                        title="Play question audio"
-                      >
-                        <svg className="h-5 w-5 transition-transform group-hover:scale-105" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-                        </svg>
-                      </button>
-                    )}
-                  </div>
-                
+                <div className="flex items-center justify-between gap-4">
+                  <h3 className="text-md sm:text-lg font-extrabold text-gray-900 whitespace-pre-wrap leading-snug flex-1 animate-in fade-in duration-300">
+                    {activeQuestion ? activeQuestion.text : "Configure a question for this slot in Admin panel."}
+                  </h3>
+                  {activeQuestion && (
+                    <button
+                      type="button"
+                      onClick={playQuestionVoice}
+                      className="group flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-650 hover:bg-teal-100 hover:text-teal-700 active:scale-95 transition-all shadow-sm cursor-pointer"
+                      title="Play question audio"
+                    >
+                      <svg className="h-4.5 w-4.5 transition-transform group-hover:scale-105" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                      </svg>
+                    </button>
+                  )}
                 </div>
               </div>
 
               {/* Grid of Choices Images */}
-              <div className="space-y-3">
-                <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Selection Cards</h4>
-                
+              <div className="flex-1 flex flex-col justify-center min-h-0 overflow-hidden py-1">
                 {screenImages.length > 0 ? (
-                  <div className="flex flex-wrap gap-4 justify-center">
+                  <div className="grid grid-cols-2 gap-2 sm:gap-2 w-full max-w-2xl mx-auto h-full max-h-[62vh] items-center justify-items-center">
                     {screenImages.map((img) => (
                       <button
                         key={img.id}
                         type="button"
                         onClick={() => handleImageClick(img.id, img.name)}
-                        className="group aspect-square w-[140px] sm:w-[180px] overflow-hidden rounded-2xl border border-gray-200 bg-white p-2.5 shadow-sm hover:shadow-md hover:border-teal-400 active:scale-[0.99] transition-all cursor-pointer flex items-center justify-center"
+                        className="group w-full max-w-[27vh] h-full max-h-[27vh] aspect-square overflow-hidden rounded-2xl border border-gray-200 bg-white p-3 shadow-sm hover:shadow-md hover:border-teal-400 active:scale-[0.99] transition-all cursor-pointer flex items-center justify-center"
                       >
-                        <div className="aspect-square w-full h-full relative overflow-hidden rounded-xl bg-gray-100">
+                        <div className="w-full h-full relative overflow-hidden rounded-xl bg-gray-50 flex items-center justify-center">
                           <img
                             src={img.url}
                             alt={img.name}
-                            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                            className="h-full w-full object-contain p-1 transition-transform duration-300 group-hover:scale-105"
                           />
                         </div>
                       </button>
                     ))}
                   </div>
                 ) : (
-                  <div className="rounded-2xl border border-dashed border-gray-300 bg-white py-12 text-center text-gray-400">
+                  <div className="rounded-2xl border border-dashed border-gray-300 bg-white py-12 text-center text-gray-400 w-full shrink-0">
                     <p className="text-xs font-semibold">No images configured for this Screen in Admin panel.</p>
                     <Link
-                                  href="/"
-                                  className="bg-teal-400 mt-4 inline-flex items-center gap-1.5 rounded-xl bg-teal-650 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-teal-600"
-                                >
-                                  Return to Dashboard
-                                </Link>
+                      href="/"
+                      className="bg-teal-400 mt-4 inline-flex items-center gap-1.5 rounded-xl bg-teal-650 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-teal-600"
+                    >
+                      Return to Dashboard
+                    </Link>
                   </div>
-
                 )}
               </div>
 
@@ -635,7 +629,7 @@ export default function TestPortalClient({
                       Voice Response Required
                     </span>
                     {isRecording ? (
-                      <span className="flex items-center gap-1 text-[10px] font-bold text-red-600 animate-pulse">
+                      <span className="flex items-center gap-1 text-[10px] font-bold text-red-650 animate-pulse">
                         <span className="h-2 w-2 rounded-full bg-red-600"></span>
                         RECORDING {formatTime(recordingTime)}
                       </span>
@@ -687,7 +681,7 @@ export default function TestPortalClient({
 
           </div>
         ) : (
-          <div className="rounded-2xl border border-dashed border-gray-300 bg-white py-16 text-center text-gray-400">
+          <div className="rounded-2xl border border-dashed border-gray-300 bg-white py-16 text-center text-gray-400 shrink-0">
             <h3 className="font-bold text-gray-800">No Assessment Screens configured</h3>
             <p className="text-xs mt-1 text-gray-400 max-w-sm mx-auto leading-normal">
               This level has no screens configured. Please set up screens, images, and questions in the Admin Panel settings first.

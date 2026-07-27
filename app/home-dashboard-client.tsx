@@ -337,7 +337,7 @@ export default function HomeDashboardClient({
 
         {/* Service Users Directory Display */}
         {processedUsers.length > 0 ? (
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="flex flex-col gap-4">
             {processedUsers.map((user) => {
               const age = calculateAge(user.dob);
               const initials = user.name
@@ -350,84 +350,63 @@ export default function HomeDashboardClient({
               return (
                 <div
                   key={user.id}
-                  className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 shadow-sm hover:shadow-md hover:border-teal-200 transition-all duration-200"
+                  className="group relative flex flex-col md:flex-row md:items-center justify-between gap-4 overflow-hidden rounded-2xl border border-gray-200 bg-white p-5 shadow-sm hover:shadow-md hover:border-teal-200 transition-all duration-200"
                 >
-                  <div className="space-y-4">
-                    {/* Card Header Profile Block */}
-                    <div className="flex items-start gap-4">
-                      {/* Gener-coded Avatar */}
-                      <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl font-bold text-lg shadow-inner ${getGenderAvatarBg(user.gender)}`}>
-                        {initials}
-                      </div>
-
-                      {/* Name and Client Ref Code */}
-                      <div className="space-y-1 min-w-0 flex-1">
-                        <h3 className="font-extrabold text-gray-900 truncate leading-snug group-hover:text-teal-650 transition-colors" title={user.name}>
-                          {user.name}
-                        </h3>
-                        <div className="flex flex-wrap items-center gap-2">
-                          {user.clientRef ? (
-                            <span className="inline-flex items-center rounded-md bg-gray-50 px-2 py-0.5 text-[10px] font-bold text-gray-600 ring-1 ring-inset ring-gray-500/10">
-                              REF: {user.clientRef}
-                            </span>
-                          ) : (
-                            <span className="text-[10px] text-gray-400 italic">No Ref Code</span>
-                          )}
-                          
-                          <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold ring-1 ring-inset ${getGenderBadgeStyles(user.gender)}`}>
-                            {user.gender || "Prefer not to say"}
+                  {/* Left Section: Avatar & Name details */}
+                  <div className="flex items-center gap-4 min-w-0 md:w-1/4 shrink-0">
+                    <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl font-bold text-lg shadow-inner ${getGenderAvatarBg(user.gender)}`}>
+                      {initials}
+                    </div>
+                    <div className="space-y-1 min-w-0 flex-1">
+                      <h3 className="font-extrabold text-gray-900 truncate leading-snug group-hover:text-teal-650 transition-colors" title={user.name}>
+                        {user.name}
+                      </h3>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {user.clientRef ? (
+                          <span className="inline-flex items-center rounded-md bg-gray-50 px-2 py-0.5 text-[10px] font-bold text-gray-600 ring-1 ring-inset ring-gray-500/10">
+                            REF: {user.clientRef}
                           </span>
-                        </div>
+                        ) : (
+                          <span className="text-[10px] text-gray-400 italic">No Ref Code</span>
+                        )}
+                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold ring-1 ring-inset ${getGenderBadgeStyles(user.gender)}`}>
+                          {user.gender || "Prefer not to say"}
+                        </span>
                       </div>
                     </div>
-
-                    {/* Metadata details list */}
-                    <div className="grid grid-cols-2 gap-y-3 gap-x-4 border-t border-b border-gray-100 py-3.5 text-xs">
-                      <div>
-                        <span className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Date of Birth</span>
-                        <span className="font-bold text-gray-700">{user.dob}</span>
-                      </div>
-                      <div>
-                        <span className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Age</span>
-                        <span className="font-bold text-gray-700">{age} years old</span>
-                      </div>
-                      <div className="col-span-2">
-                        <span className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider">NHS Number</span>
-                        <span className="font-mono font-bold text-gray-700">{formatNhsNumber(user.nhsNumber)}</span>
-                      </div>
-                    </div>
-
-                    {/* Notes preview */}
-                    {user.notes ? (
-                      <div className="space-y-1">
-                        <span className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Notes</span>
-                        <p className="text-xs text-gray-500 line-clamp-2 italic leading-relaxed" title={user.notes}>
-                          "{user.notes}"
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="py-1">
-                        <p className="text-xs text-gray-300 italic">No clinical or behavioral notes recorded.</p>
-                      </div>
-                    )}
                   </div>
 
-                  {/* Actions bar */}
-                  <div className="mt-5 border-t border-gray-50 pt-4 flex items-center justify-end gap-2">
-                    {/* <button
-                      type="button"
-                      className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-bold text-gray-700 shadow-sm transition-all hover:bg-gray-50 hover:text-gray-900 active:scale-98 cursor-pointer"
-                    >
-                      <svg className="h-3.5 w-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                      </svg>
-                      View Profile
-                    </button> */}
-                    
+                  {/* Middle Section: Demographics & Notes */}
+                  <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-4 items-center text-xs min-w-0 md:border-l md:border-r md:border-gray-100 md:px-6">
+                    <div>
+                      <span className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Date of Birth</span>
+                      <span className="font-bold text-gray-700">{user.dob}</span>
+                    </div>
+                    <div>
+                      <span className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Age</span>
+                      <span className="font-bold text-gray-700">{age} years old</span>
+                    </div>
+                    <div>
+                      <span className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider">NHS Number</span>
+                      <span className="font-mono font-bold text-gray-700">{formatNhsNumber(user.nhsNumber)}</span>
+                    </div>
+                    <div className="col-span-2 sm:col-span-1 min-w-0">
+                      <span className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Notes</span>
+                      {user.notes ? (
+                        <p className="text-xs text-gray-500 line-clamp-1 italic leading-relaxed" title={user.notes}>
+                          "{user.notes}"
+                        </p>
+                      ) : (
+                        <p className="text-xs text-gray-300 italic">No notes recorded.</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Right Section: Action Button */}
+                  <div className="shrink-0 flex items-center md:pl-2">
                     <Link
                       href={`/test/${user.id}`}
-                      className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-teal-50 px-3 py-2 text-xs font-bold text-teal-800 transition-all hover:bg-teal-100 hover:text-teal-900 active:scale-98 cursor-pointer"
+                      className="inline-flex w-full md:w-auto items-center justify-center gap-1.5 rounded-xl bg-teal-50 px-4 py-2.5 text-xs font-bold text-teal-800 transition-all hover:bg-teal-100 hover:text-teal-900 active:scale-98 cursor-pointer"
                     >
                       <svg className="h-3.5 w-3.5 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
