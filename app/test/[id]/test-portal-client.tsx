@@ -307,6 +307,15 @@ export default function TestPortalClient({
       window.speechSynthesis.resume();
       setTimeout(() => {
         const utterance = new SpeechSynthesisUtterance(cleanText);
+        utterance.lang = "hi-IN";
+        
+        // Attempt to find a Hindi voice, otherwise fallback to default browser choice for the language
+        const voices = window.speechSynthesis.getVoices();
+        const hindiVoice = voices.find((voice) => voice.lang.toLowerCase().startsWith("hi"));
+        if (hindiVoice) {
+          utterance.voice = hindiVoice;
+        }
+
         utterance.rate = 0.92;
         utterance.pitch = 1.0;
         window.speechSynthesis.speak(utterance);

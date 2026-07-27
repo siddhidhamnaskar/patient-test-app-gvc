@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
       return new NextResponse("Empty text after filtering", { status: 400 });
     }
 
-    const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=en&client=tw-ob&q=${encodeURIComponent(cleanText)}`;
+    const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=hi&client=tw-ob&q=${encodeURIComponent(cleanText)}`;
 
     // Server-side request avoids browser CORS and Referrer policy blocks
     const response = await fetch(ttsUrl, {
