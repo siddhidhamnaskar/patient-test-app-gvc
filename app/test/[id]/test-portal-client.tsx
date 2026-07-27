@@ -523,9 +523,7 @@ export default function TestPortalClient({
                       </button>
                     )}
                   </div>
-                  <p className="text-xs text-gray-400">
-                    Instruct the service user to view the images below and click the one that corresponds to their answer.
-                  </p>
+                
                 </div>
               </div>
 
