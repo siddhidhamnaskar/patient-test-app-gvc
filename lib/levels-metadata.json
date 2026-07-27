@@ -21,10 +21,10 @@
         ],
         "order": 1,
         "voiceRecordEnabled": [
-          false
+          true
         ],
         "voicePromptUrls": [
-          ""
+          "/recordings/lvl_lvl_1785093321925_scr_scr_1785093329352_slot_0_1785140022928.webm"
         ]
       },
       {
