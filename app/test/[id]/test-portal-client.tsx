@@ -527,7 +527,7 @@ export default function TestPortalClient({
               {/* Grid of Choices Images */}
               <div className="flex-1 flex flex-col justify-center min-h-0 overflow-hidden py-1">
                 {screenImages.length > 0 ? (
-                  <div className="grid grid-cols-2 gap-2 sm:gap-2 w-full max-w-2xl mx-auto h-full max-h-[62vh] items-center justify-items-center">
+                  <div className="grid grid-cols-2 gap-3 sm:gap-4 w-full max-w-[460px] mx-auto h-full max-h-[62vh] items-center justify-items-center">
                     {screenImages.map((img) => (
                       <button
                         key={img.id}
