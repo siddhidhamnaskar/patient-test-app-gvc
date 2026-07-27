@@ -189,6 +189,46 @@ export default function TestPortalClient({
     }
   };
 
+  // Check if we are on the very first question of the entire test
+  const isFirstQuestion = levelIndex === 0 && screenIndex === 0 && questionSlotIndex === 0;
+
+  // Resolve question count for any given screen
+  const getScreenQuestionsCount = (screen: ScreenMetadata | undefined) => {
+    if (!screen) return 0;
+    const list = (screen.questionIds || []).filter((id) => id !== "");
+    if (list.length === 0 && screen.questionId) {
+      return 1;
+    }
+    return list.length;
+  };
+
+  // Shared helper to transition to next question, screen, or level
+  const moveToNext = (newResult: AssessmentResult) => {
+    setResults((prev) => [...prev, newResult]);
+    setVoiceRecordedForCurrent(false); // Reset voice recorder flag
+
+    if (questionSlotIndex < screenQuestions.length - 1) {
+      // 1. Move to next question on the same screen
+      setQuestionSlotIndex((prev) => prev + 1);
+    } else {
+      // 2. Move to next screen in this level
+      if (screenIndex < activeScreens.length - 1) {
+        setScreenIndex((prev) => prev + 1);
+        setQuestionSlotIndex(0);
+      } else {
+        // 3. Move to next level
+        if (levelIndex < sortedLevels.length - 1) {
+          setLevelIndex((prev) => prev + 1);
+          setScreenIndex(0);
+          setQuestionSlotIndex(0);
+        } else {
+          // End of assessment
+          setAssessmentCompleted(true);
+        }
+      }
+    }
+  };
+
   // Click on image handler: Records answer and moves forward
   const handleImageClick = (clickedImageId: string, clickedImageName: string) => {
     if (typeof window !== "undefined" && "speechSynthesis" in window) {
@@ -220,30 +260,71 @@ export default function TestPortalClient({
       voiceRecorded: voiceRecordedForCurrent,
     };
 
-    setResults((prev) => [...prev, newResult]);
-    setVoiceRecordedForCurrent(false); // Reset voice recorder flag
+    moveToNext(newResult);
+  };
 
-    // Transition to next question, screen or level
-    if (questionSlotIndex < screenQuestions.length - 1) {
-      // 1. Move to next question on the same screen
-      setQuestionSlotIndex((prev) => prev + 1);
+  // Go back to the previous question slot
+  const handlePrevQuestion = () => {
+    if (isFirstQuestion) return;
+
+    // Pop the last result
+    setResults((prev) => prev.slice(0, -1));
+
+    if (questionSlotIndex > 0) {
+      setQuestionSlotIndex((prev) => prev - 1);
     } else {
-      // 2. Move to next screen in this level
-      if (screenIndex < activeScreens.length - 1) {
-        setScreenIndex((prev) => prev + 1);
-        setQuestionSlotIndex(0);
+      // Find previous screen
+      if (screenIndex > 0) {
+        const prevScreenIndex = screenIndex - 1;
+        const prevScreen = activeScreens[prevScreenIndex];
+        const questionsCount = getScreenQuestionsCount(prevScreen);
+        setScreenIndex(prevScreenIndex);
+        setQuestionSlotIndex(questionsCount > 0 ? questionsCount - 1 : 0);
       } else {
-        // 3. Move to next level
-        if (levelIndex < sortedLevels.length - 1) {
-          setLevelIndex((prev) => prev + 1);
-          setScreenIndex(0);
-          setQuestionSlotIndex(0);
-        } else {
-          // End of assessment
-          setAssessmentCompleted(true);
+        // Find previous level
+        if (levelIndex > 0) {
+          const prevLevelIndex = levelIndex - 1;
+          const prevLevel = sortedLevels[prevLevelIndex];
+          const prevLevelScreens = [...(prevLevel.screens || [])].sort((a, b) => a.order - b.order);
+          const prevScreenIndex = prevLevelScreens.length - 1;
+          const prevScreen = prevLevelScreens[prevScreenIndex];
+          const questionsCount = getScreenQuestionsCount(prevScreen);
+          
+          setLevelIndex(prevLevelIndex);
+          setScreenIndex(prevScreenIndex);
+          setQuestionSlotIndex(questionsCount > 0 ? questionsCount - 1 : 0);
         }
       }
     }
+  };
+
+  // Skip the current question (records as "Skipped") and moves forward
+  const handleNextQuestion = () => {
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
+    if (ttsAudioRef.current) {
+      ttsAudioRef.current.pause();
+    }
+    if (isRecording) {
+      stopRecording();
+    }
+
+    const currentQuestion = screenQuestions[questionSlotIndex];
+    const skippedResult: AssessmentResult = {
+      levelId: activeLevel.id,
+      levelName: activeLevel.name,
+      screenId: activeScreen.id,
+      screenName: activeScreen.name,
+      questionIndex: questionSlotIndex,
+      questionText: currentQuestion ? currentQuestion.text : "Unknown Question",
+      clickedImageId: "skipped",
+      clickedImageName: "Skipped",
+      timestamp: new Date().toLocaleTimeString(),
+      voiceRecorded: false,
+    };
+
+    moveToNext(skippedResult);
   };
 
   // Format timer seconds
@@ -556,6 +637,32 @@ export default function TestPortalClient({
                     </Link>
                   </div>
                 )}
+              </div>
+
+              {/* Navigation buttons */}
+              <div className="flex items-center justify-between mt-auto pt-2 border-t border-gray-100 shrink-0">
+                <button
+                  type="button"
+                  onClick={handlePrevQuestion}
+                  disabled={isFirstQuestion}
+                  className="inline-flex items-center gap-1 px-4 py-2 text-xs font-extrabold rounded-xl border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 active:scale-98 disabled:opacity-50 disabled:pointer-events-none transition-all cursor-pointer shadow-sm"
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                  </svg>
+                  Previous Question
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleNextQuestion}
+                  className="bg-teal-400 inline-flex items-center gap-1 px-4 py-2 text-xs font-extrabold rounded-xl bg-teal-650 hover:bg-teal-600 text-white active:scale-98 transition-all cursor-pointer shadow-md"
+                >
+                  Next Question
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
               </div>
 
             </div>
