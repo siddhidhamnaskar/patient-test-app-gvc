@@ -6,7 +6,7 @@ const SERVICE_USERS_PATH = path.join(process.cwd(), "lib", "service-users.json")
 export interface ServiceUser {
   id: string;
   name: string;
-  dob: string;
+  dob?: string;
   nhsNumber?: string;
   clientRef?: string;
   gender?: string;
@@ -57,3 +57,33 @@ export function getServiceUserById(id: string): ServiceUser | undefined {
     return undefined;
   }
 }
+
+export function updateServiceUser(updatedUser: ServiceUser): boolean {
+  try {
+    ensureServiceUsersStoreExists();
+    const items = getServiceUsers();
+    const index = items.findIndex((item) => item.id === updatedUser.id);
+    if (index === -1) return false;
+    items[index] = updatedUser;
+    fs.writeFileSync(SERVICE_USERS_PATH, JSON.stringify(items, null, 2), "utf-8");
+    return true;
+  } catch (error) {
+    console.error("Failed to update service user:", error);
+    return false;
+  }
+}
+
+export function deleteServiceUser(id: string): boolean {
+  try {
+    ensureServiceUsersStoreExists();
+    const items = getServiceUsers();
+    const filtered = items.filter((item) => item.id !== id);
+    if (filtered.length === items.length) return false;
+    fs.writeFileSync(SERVICE_USERS_PATH, JSON.stringify(filtered, null, 2), "utf-8");
+    return true;
+  } catch (error) {
+    console.error("Failed to delete service user:", error);
+    return false;
+  }
+}
+

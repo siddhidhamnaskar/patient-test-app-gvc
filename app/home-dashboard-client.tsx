@@ -3,7 +3,7 @@
 import { useState, useTransition, useMemo } from "react";
 import { signOut } from "next-auth/react";
 import Link from "next/link";
-import { createServiceUserAction } from "@/app/actions";
+import { createServiceUserAction, updateServiceUserAction, deleteServiceUserAction } from "@/app/actions";
 import { ServiceUser } from "@/lib/service-user-store";
 
 interface HomeDashboardClientProps {
@@ -37,6 +37,53 @@ export default function HomeDashboardClient({
   const [formGender, setFormGender] = useState("Prefer not to say");
   const [formNotes, setFormNotes] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
+
+  // Edit/Delete state
+  const [editingUser, setEditingUser] = useState<ServiceUser | null>(null);
+  const [deletingUser, setDeletingUser] = useState<ServiceUser | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const handleEditClick = (user: ServiceUser) => {
+    setEditingUser(user);
+    setFormName(user.name);
+    setFormDob(user.dob);
+    setFormNhsNumber(user.nhsNumber || "");
+    setFormClientRef(user.clientRef || "");
+    setFormGender(user.gender || "Prefer not to say");
+    setFormNotes(user.notes || "");
+    setFormError(null);
+    setIsModalOpen(true);
+  };
+
+  const handleAddClick = () => {
+    setEditingUser(null);
+    setFormName("");
+    setFormDob("");
+    setFormNhsNumber("");
+    setFormClientRef("");
+    setFormGender("Prefer not to say");
+    setFormNotes("");
+    setFormError(null);
+    setIsModalOpen(true);
+  };
+
+  const handleDeleteClick = (user: ServiceUser) => {
+    setDeletingUser(user);
+    setDeleteError(null);
+  };
+
+  const confirmDelete = () => {
+    if (!deletingUser) return;
+    startTransition(async () => {
+      const res = await deleteServiceUserAction(deletingUser.id);
+      if (res.success) {
+        setServiceUsers((prev) => prev.filter((u) => u.id !== deletingUser.id));
+        setDeletingUser(null);
+      } else {
+        setDeleteError(res.error || "Failed to delete Service User.");
+      }
+    });
+  };
 
   // Age Calculator
   const calculateAge = (dobString: string): number => {
@@ -98,10 +145,14 @@ export default function HomeDashboardClient({
         return b.name.localeCompare(a.name);
       }
       if (sortBy === "dob_youngest") {
-        return new Date(b.dob).getTime() - new Date(a.dob).getTime();
+        const timeA = a.dob ? new Date(a.dob).getTime() : 0;
+        const timeB = b.dob ? new Date(b.dob).getTime() : 0;
+        return timeB - timeA;
       }
       if (sortBy === "dob_oldest") {
-        return new Date(a.dob).getTime() - new Date(b.dob).getTime();
+        const timeA = a.dob ? new Date(a.dob).getTime() : Infinity;
+        const timeB = b.dob ? new Date(b.dob).getTime() : Infinity;
+        return timeA - timeB;
       }
       return 0;
     });
@@ -119,15 +170,12 @@ export default function HomeDashboardClient({
       setFormError("Full Name is required.");
       return;
     }
-    if (!formDob) {
-      setFormError("Date of Birth is required.");
-      return;
-    }
-
-    const birthDate = new Date(formDob);
-    if (birthDate > new Date()) {
-      setFormError("Date of Birth cannot be in the future.");
-      return;
+    if (formDob) {
+      const birthDate = new Date(formDob);
+      if (birthDate > new Date()) {
+        setFormError("Date of Birth cannot be in the future.");
+        return;
+      }
     }
 
     const cleanNhs = formNhsNumber.replace(/\s+/g, "");
@@ -137,27 +185,56 @@ export default function HomeDashboardClient({
     }
 
     startTransition(async () => {
-      const res = await createServiceUserAction({
-        name: formName,
-        dob: formDob,
-        nhsNumber: cleanNhs,
-        clientRef: formClientRef,
-        gender: formGender,
-        notes: formNotes,
-      });
+      if (editingUser) {
+        const res = await updateServiceUserAction({
+          id: editingUser.id,
+          name: formName,
+          dob: formDob,
+          nhsNumber: cleanNhs,
+          clientRef: formClientRef,
+          gender: formGender,
+          notes: formNotes,
+        });
 
-      if (res.success && res.data) {
-        setServiceUsers((prev) => [res.data as ServiceUser, ...prev]);
-        // Reset Form & Close Modal
-        setFormName("");
-        setFormDob("");
-        setFormNhsNumber("");
-        setFormClientRef("");
-        setFormGender("Prefer not to say");
-        setFormNotes("");
-        setIsModalOpen(false);
+        if (res.success && res.data) {
+          setServiceUsers((prev) =>
+            prev.map((user) => (user.id === editingUser.id ? (res.data as ServiceUser) : user))
+          );
+          // Reset Form & Close Modal
+          setFormName("");
+          setFormDob("");
+          setFormNhsNumber("");
+          setFormClientRef("");
+          setFormGender("Prefer not to say");
+          setFormNotes("");
+          setEditingUser(null);
+          setIsModalOpen(false);
+        } else {
+          setFormError(res.error || "Failed to update Service User.");
+        }
       } else {
-        setFormError(res.error || "Failed to create Service User.");
+        const res = await createServiceUserAction({
+          name: formName,
+          dob: formDob,
+          nhsNumber: cleanNhs,
+          clientRef: formClientRef,
+          gender: formGender,
+          notes: formNotes,
+        });
+
+        if (res.success && res.data) {
+          setServiceUsers((prev) => [res.data as ServiceUser, ...prev]);
+          // Reset Form & Close Modal
+          setFormName("");
+          setFormDob("");
+          setFormNhsNumber("");
+          setFormClientRef("");
+          setFormGender("Prefer not to say");
+          setFormNotes("");
+          setIsModalOpen(false);
+        } else {
+          setFormError(res.error || "Failed to create Service User.");
+        }
       }
     });
   };
@@ -268,7 +345,7 @@ export default function HomeDashboardClient({
           </div>
 
           <button
-            onClick={() => setIsModalOpen(true)}
+            onClick={handleAddClick}
             className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal-600 to-teal-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:from-teal-500 hover:to-teal-400 hover:shadow-md transition-all active:scale-[0.98] cursor-pointer"
           >
             <svg className="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
@@ -380,11 +457,11 @@ export default function HomeDashboardClient({
                   <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-4 items-center text-xs min-w-0 md:border-l md:border-r md:border-gray-100 md:px-6">
                     <div>
                       <span className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Date of Birth</span>
-                      <span className="font-bold text-gray-700">{user.dob}</span>
+                      <span className={`font-bold ${user.dob ? "text-gray-700" : "text-gray-400 italic"}`}>{user.dob || "Not specified"}</span>
                     </div>
                     <div>
                       <span className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Age</span>
-                      <span className="font-bold text-gray-700">{age} years old</span>
+                      <span className={`font-bold ${user.dob ? "text-gray-700" : "text-gray-400 italic"}`}>{user.dob ? `${age} years old` : "N/A"}</span>
                     </div>
                     <div>
                       <span className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider">NHS Number</span>
@@ -402,11 +479,29 @@ export default function HomeDashboardClient({
                     </div>
                   </div>
 
-                  {/* Right Section: Action Button */}
-                  <div className="shrink-0 flex items-center md:pl-2">
+                  {/* Right Section: Action Buttons */}
+                  <div className="shrink-0 flex items-center gap-2 md:pl-2">
+                    <button
+                      onClick={() => handleEditClick(user)}
+                      title="Edit Service User"
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-500 hover:text-teal-650 hover:border-teal-200 hover:bg-teal-50/30 transition-all active:scale-95 cursor-pointer shadow-sm"
+                    >
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => handleDeleteClick(user)}
+                      title="Delete Service User"
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-rose-100 bg-rose-50 text-rose-600 hover:text-rose-750 hover:bg-rose-100/70 hover:border-rose-200 transition-all active:scale-95 cursor-pointer shadow-sm"
+                    >
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
                     <Link
                       href={`/test/${user.id}`}
-                      className="inline-flex w-full md:w-auto items-center justify-center gap-1.5 rounded-xl bg-teal-50 px-4 py-2.5 text-xs font-bold text-teal-800 transition-all hover:bg-teal-100 hover:text-teal-900 active:scale-98 cursor-pointer"
+                      className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-teal-50 px-4 text-xs font-bold text-teal-800 transition-all hover:bg-teal-100 hover:text-teal-900 active:scale-98 cursor-pointer shadow-sm"
                     >
                       <svg className="h-3.5 w-3.5 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
@@ -445,8 +540,8 @@ export default function HomeDashboardClient({
               </button>
             ) : (
               <button
-                onClick={() => setIsModalOpen(true)}
-                className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-teal-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-teal-500 cursor-pointer"
+                onClick={handleAddClick}
+                className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-teal-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-teal-550 cursor-pointer"
               >
                 Register First User
               </button>
@@ -456,7 +551,7 @@ export default function HomeDashboardClient({
 
       </main>
 
-      {/* Add Service User Dialog Modal */}
+      {/* Add/Edit Service User Dialog Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-950/40 backdrop-blur-sm animate-in fade-in duration-200">
           <div
@@ -468,13 +563,20 @@ export default function HomeDashboardClient({
             <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50/50 px-6 py-4.5">
               <div className="flex items-center gap-2 text-gray-800">
                 <svg className="h-5 w-5 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                  {editingUser ? (
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                  ) : (
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                  )}
                 </svg>
-                <h2 className="text-lg font-bold text-gray-900">Register New Service User</h2>
+                <h2 className="text-lg font-bold text-gray-900">
+                  {editingUser ? "Edit Service User Details" : "Register New Service User"}
+                </h2>
               </div>
               <button
                 onClick={() => {
                   setIsModalOpen(false);
+                  setEditingUser(null);
                   setFormError(null);
                 }}
                 className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors cursor-pointer"
@@ -517,12 +619,11 @@ export default function HomeDashboardClient({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <label htmlFor="formDob" className="block text-xs font-bold text-gray-700 uppercase tracking-wider">
-                      Date of Birth <span className="text-red-500">*</span>
+                      Date of Birth
                     </label>
                     <input
                       type="date"
                       id="formDob"
-                      required
                       value={formDob}
                       onChange={(e) => setFormDob(e.target.value)}
                       className="w-full rounded-xl border border-gray-300 px-3.5 py-2 text-sm text-gray-900 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 focus:outline-none transition-colors cursor-pointer"
@@ -594,39 +695,127 @@ export default function HomeDashboardClient({
                 </div>
               </div>
 
-              {/* Modal Actions */}
-              <div className="flex items-center justify-end gap-3 border-t border-gray-100 bg-gray-50/50 px-6 py-4">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsModalOpen(false);
-                    setFormError(null);
-                  }}
-                  className="rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 active:scale-98 cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isPending}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-teal-600 to-teal-500 px-4.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:from-teal-500 hover:to-teal-400 active:scale-98 disabled:opacity-55 cursor-pointer"
-                >
-                  {isPending ? (
-                    <>
-                      <span className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                      Saving...
-                    </>
-                  ) : (
-                    <>
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                      </svg>
-                      Save User
-                    </>
-                  )}
-                </button>
-              </div>
+               {/* Modal Actions */}
+               <div className="flex items-center justify-end gap-3 border-t border-gray-100 bg-gray-50/50 px-6 py-4">
+                 <button
+                   type="button"
+                   onClick={() => {
+                     setIsModalOpen(false);
+                     setEditingUser(null);
+                     setFormError(null);
+                   }}
+                   className="rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 active:scale-98 cursor-pointer"
+                 >
+                   Cancel
+                 </button>
+                 <button
+                   type="submit"
+                   disabled={isPending}
+                   className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-teal-600 to-teal-500 px-4.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:from-teal-500 hover:to-teal-400 active:scale-98 disabled:opacity-55 cursor-pointer"
+                 >
+                   {isPending ? (
+                     <>
+                       <span className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                       Saving...
+                     </>
+                   ) : (
+                     <>
+                       <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                         <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                       </svg>
+                       {editingUser ? "Save Changes" : "Save User"}
+                     </>
+                   )}
+                 </button>
+               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deletingUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-950/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div
+            className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl border border-gray-150 animate-in fade-in zoom-in-95 duration-200"
+            role="dialog"
+            aria-modal="true"
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-gray-100 bg-red-50/50 px-6 py-4.5">
+              <div className="flex items-center gap-2 text-red-805">
+                <svg className="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <h2 className="text-lg font-bold text-red-900">Delete Service User</h2>
+              </div>
+              <button
+                onClick={() => setDeletingUser(null)}
+                className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors cursor-pointer"
+              >
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 space-y-4">
+              {deleteError && (
+                <div className="rounded-xl bg-red-50 p-3.5 border border-red-100 text-xs font-medium text-red-700 flex gap-2 items-start">
+                  <svg className="h-4.5 w-4.5 shrink-0 text-red-550" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                  <span>{deleteError}</span>
+                </div>
+              )}
+
+              <p className="text-sm text-gray-600 leading-relaxed">
+                Are you sure you want to delete the clinical profile for <span className="font-extrabold text-gray-900">{deletingUser.name}</span>?
+              </p>
+              <div className="rounded-xl bg-amber-50 border border-amber-100 p-3.5 text-xs text-amber-800 space-y-1">
+                <p className="font-bold flex items-center gap-1.5">
+                  <svg className="h-4 w-4 shrink-0 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  Warning: Irreversible action
+                </p>
+                <p className="leading-normal text-amber-700">
+                  This will permanently delete their clinical files and references from the local system store.
+                </p>
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex items-center justify-end gap-3 border-t border-gray-100 bg-gray-50/50 px-6 py-4">
+              <button
+                type="button"
+                onClick={() => setDeletingUser(null)}
+                className="rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 active:scale-98 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDelete}
+                disabled={isPending}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-red-650 px-4.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-red-500 active:scale-98 disabled:opacity-55 cursor-pointer"
+              >
+                {isPending ? (
+                  <>
+                    <span className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    Delete Profile
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}
