@@ -46,7 +46,7 @@ export default function HomeDashboardClient({
   const handleEditClick = (user: ServiceUser) => {
     setEditingUser(user);
     setFormName(user.name);
-    setFormDob(user.dob);
+    setFormDob(user.dob || "");
     setFormNhsNumber(user.nhsNumber || "");
     setFormClientRef(user.clientRef || "");
     setFormGender(user.gender || "Prefer not to say");
@@ -416,7 +416,7 @@ export default function HomeDashboardClient({
         {processedUsers.length > 0 ? (
           <div className="flex flex-col gap-4">
             {processedUsers.map((user) => {
-              const age = calculateAge(user.dob);
+              const age = calculateAge(user.dob || "");
               const initials = user.name
                 .split(" ")
                 .map((n) => n[0])
