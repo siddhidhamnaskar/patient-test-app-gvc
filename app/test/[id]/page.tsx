@@ -62,6 +62,7 @@ export default async function TestPage({ params }: TestPageProps) {
       questionIds: scr.questionIds,
       voiceRecordEnabled: scr.voiceRecordEnabled,
       voicePromptUrls: scr.voicePromptUrls,
+      answers: scr.answers || [],
     })) || [],
   }));
 

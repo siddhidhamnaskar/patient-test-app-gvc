@@ -26,6 +26,7 @@ interface ScreenMetadata {
   questionIds?: string[];
   voiceRecordEnabled?: boolean[];
   voicePromptUrls?: string[];
+  answers?: string[];
   order: number;
 }
 
@@ -52,6 +53,9 @@ interface AssessmentResult {
   questionText: string;
   clickedImageId: string;
   clickedImageName: string;
+  correctImageId?: string;
+  correctImageName?: string;
+  isCorrect?: boolean;
   timestamp: string;
   voiceRecorded?: boolean;
 }
@@ -246,6 +250,10 @@ export default function TestPortalClient({
 
     const currentQuestion = screenQuestions[questionSlotIndex];
 
+    const correctImageId = activeScreen.answers?.[questionSlotIndex] || "";
+    const correctImageName = correctImageId ? (images.find(img => img.id === correctImageId)?.name || "Unknown Image") : "";
+    const isCorrect = correctImageId ? clickedImageId === correctImageId : undefined;
+
     // Log assessment result
     const newResult: AssessmentResult = {
       levelId: activeLevel.id,
@@ -256,6 +264,9 @@ export default function TestPortalClient({
       questionText: currentQuestion ? currentQuestion.text : "Unknown Question",
       clickedImageId,
       clickedImageName,
+      correctImageId,
+      correctImageName,
+      isCorrect,
       timestamp: new Date().toLocaleTimeString(),
       voiceRecorded: voiceRecordedForCurrent,
     };
@@ -311,6 +322,11 @@ export default function TestPortalClient({
     }
 
     const currentQuestion = screenQuestions[questionSlotIndex];
+
+    const correctImageId = activeScreen.answers?.[questionSlotIndex] || "";
+    const correctImageName = correctImageId ? (images.find(img => img.id === correctImageId)?.name || "Unknown Image") : "";
+    const isCorrect = correctImageId ? false : undefined;
+
     const skippedResult: AssessmentResult = {
       levelId: activeLevel.id,
       levelName: activeLevel.name,
@@ -320,6 +336,9 @@ export default function TestPortalClient({
       questionText: currentQuestion ? currentQuestion.text : "Unknown Question",
       clickedImageId: "skipped",
       clickedImageName: "Skipped",
+      correctImageId,
+      correctImageName,
+      isCorrect,
       timestamp: new Date().toLocaleTimeString(),
       voiceRecorded: false,
     };
@@ -479,7 +498,8 @@ export default function TestPortalClient({
                     <th className="px-6 py-3">Level / Screen</th>
                     <th className="px-6 py-3">Question Text</th>
                     <th className="px-6 py-3">Selected Asset</th>
-                    
+                    <th className="px-6 py-3">Correct Answer</th>
+                    <th className="px-6 py-3">Result Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 text-gray-700">
@@ -495,8 +515,36 @@ export default function TestPortalClient({
                           {res.clickedImageName}
                         </span>
                       </td>
-                     
-                      
+                      <td className="px-6 py-3.5">
+                        {res.correctImageId ? (
+                          <span className="inline-flex items-center gap-1 rounded bg-gray-100 px-2 py-0.5 font-bold text-gray-800">
+                            {res.correctImageName}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400 italic">Not Configured</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-3.5">
+                        {res.isCorrect === undefined ? (
+                          <span className="inline-flex items-center gap-1 rounded bg-gray-50 px-2 py-0.5 font-medium text-gray-500 border border-gray-200">
+                            N/A
+                          </span>
+                        ) : res.isCorrect ? (
+                          <span className="inline-flex items-center gap-1 rounded bg-green-50 px-2 py-0.5 font-bold text-green-700 border border-green-150">
+                            <svg className="h-3 w-3 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                            </svg>
+                            Correct
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 rounded bg-red-50 px-2 py-0.5 font-bold text-red-700 border border-red-150">
+                            <svg className="h-3 w-3 text-red-650" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                            Incorrect
+                          </span>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

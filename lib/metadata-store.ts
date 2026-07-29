@@ -20,6 +20,7 @@ export interface ScreenMetadata {
   questionIds?: string[];
   voiceRecordEnabled?: boolean[];
   voicePromptUrls?: string[];
+  answers?: string[];
   order: number;
 }
 

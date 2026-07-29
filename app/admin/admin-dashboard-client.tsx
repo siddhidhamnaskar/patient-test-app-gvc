@@ -48,6 +48,7 @@ interface ScreenMetadata {
   questionIds?: string[];
   voiceRecordEnabled?: boolean[];
   voicePromptUrls?: string[];
+  answers?: string[];
   order: number;
 }
 
@@ -922,11 +923,28 @@ export default function AdminDashboardClient({
       deleteVoicePromptAction(previousUrl).catch(console.error);
     }
 
+    // Reset answer for this slot as well
+    let currentAnswers = screen.answers ? [...screen.answers] : [];
+    while (currentAnswers.length <= questionIndex) {
+      currentAnswers.push("");
+    }
+    currentAnswers[questionIndex] = "";
+
     handleUpdateScreen(screen.id, { 
       questionIds: currentQuestionIds,
       voiceRecordEnabled: currentVoiceRecord,
-      voicePromptUrls: currentVoiceUrls
+      voicePromptUrls: currentVoiceUrls,
+      answers: currentAnswers
     });
+  };
+
+  const handleUpdateScreenAnswer = (screen: ScreenMetadata, questionIndex: number, newAnswerImageId: string) => {
+    let currentAnswers = screen.answers ? [...screen.answers] : [];
+    while (currentAnswers.length <= questionIndex) {
+      currentAnswers.push("");
+    }
+    currentAnswers[questionIndex] = newAnswerImageId;
+    handleUpdateScreen(screen.id, { answers: currentAnswers });
   };
 
   const handleUpdateScreenVoiceRecord = (screen: ScreenMetadata, questionIndex: number, enabled: boolean) => {
@@ -2425,6 +2443,29 @@ export default function AdminDashboardClient({
                                         </option>
                                       ))}
                                     </select>
+
+                                    {currentVal && (
+                                      <div className="space-y-1 mt-1.5">
+                                        <label className="block text-[10px] text-gray-500 font-bold uppercase tracking-wider">
+                                          Correct Answer Image
+                                        </label>
+                                        <select
+                                          value={screen.answers?.[idx] || ""}
+                                          onChange={(e) => handleUpdateScreenAnswer(screen, idx, e.target.value)}
+                                          className="w-full rounded-lg border border-gray-200 px-3 py-1.5 text-xs outline-none transition-all focus:border-teal-500 focus:ring-1 focus:ring-teal-500/10 bg-white font-medium cursor-pointer"
+                                        >
+                                          <option value="">-- No Answer / Empty --</option>
+                                          {activeImageIds.filter(Boolean).map((imgId, imgIdx) => {
+                                            const foundImg = images.find((i) => i.id === imgId);
+                                            return (
+                                              <option key={imgId} value={imgId}>
+                                                Slot {imgIdx + 1}: {foundImg ? foundImg.name : imgId}
+                                              </option>
+                                            );
+                                          })}
+                                        </select>
+                                      </div>
+                                    )}
                                   </div>
 
                                   {/* Voice recording toggle and recorder */}
@@ -2509,6 +2550,19 @@ export default function AdminDashboardClient({
                                         <p className="text-gray-700 italic leading-snug">
                                           "{qItem.text}"
                                         </p>
+                                        {(() => {
+                                          const answerId = screen.answers?.[idx];
+                                          if (!answerId) return null;
+                                          const foundImg = images.find(img => img.id === answerId);
+                                          if (!foundImg) return null;
+                                          return (
+                                            <div className="flex items-center gap-1.5 mt-2 bg-teal-50 px-2 py-0.5 rounded border border-teal-150 w-fit text-[9px] text-teal-800 font-bold">
+                                              <span className="text-gray-400 font-semibold uppercase tracking-wider">Answer:</span>
+                                              <img src={foundImg.url} alt={foundImg.name} className="h-4.5 w-4.5 rounded object-contain bg-white border border-gray-200" />
+                                              <span>{foundImg.name}</span>
+                                            </div>
+                                          );
+                                        })()}
                                       </div>
                                     </div>
                                   );
