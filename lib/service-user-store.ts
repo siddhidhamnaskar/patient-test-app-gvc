@@ -1,7 +1,12 @@
 import fs from "fs";
 import path from "path";
+import os from "os";
 
-const SERVICE_USERS_PATH = path.join(process.cwd(), "lib", "service-users.json");
+const isProduction = process.env.NODE_ENV === "production" || !!process.env.VERCEL;
+
+const SERVICE_USERS_PATH = isProduction
+  ? path.join(os.tmpdir(), "service-users.json")
+  : path.join(process.cwd(), "lib", "service-users.json");
 
 export interface ServiceUser {
   id: string;

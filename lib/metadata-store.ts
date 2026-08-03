@@ -1,14 +1,17 @@
 import fs from "fs";
 import path from "path";
+import os from "os";
 
-const METADATA_PATH = process.env.VERCEL
-  ? "/tmp/images-metadata.json"
+const isProduction = process.env.NODE_ENV === "production" || !!process.env.VERCEL;
+
+const METADATA_PATH = isProduction
+  ? path.join(os.tmpdir(), "images-metadata.json")
   : path.join(process.cwd(), "lib", "images-metadata.json");
-const QUESTIONS_PATH = process.env.VERCEL
-  ? "/tmp/questions-metadata.json"
+const QUESTIONS_PATH = isProduction
+  ? path.join(os.tmpdir(), "questions-metadata.json")
   : path.join(process.cwd(), "lib", "questions-metadata.json");
-const LEVELS_PATH = process.env.VERCEL
-  ? "/tmp/levels-metadata.json"
+const LEVELS_PATH = isProduction
+  ? path.join(os.tmpdir(), "levels-metadata.json")
   : path.join(process.cwd(), "lib", "levels-metadata.json");
 
 export interface ScreenMetadata {

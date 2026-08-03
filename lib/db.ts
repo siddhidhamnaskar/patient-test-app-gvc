@@ -2,6 +2,7 @@ import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 import { PrismaClient } from "@/app/generated/prisma";
 import fs from "fs";
 import path from "path";
+import os from "os";
 
 const globalForPrisma = global as unknown as { prisma: PrismaClient };
 
@@ -24,8 +25,10 @@ if (typeof window === "undefined") {
 }
 
 // --- Local File User Store Configuration ---
-const USERS_PATH = process.env.VERCEL
-  ? "/tmp/users-metadata.json"
+const isProduction = process.env.NODE_ENV === "production" || !!process.env.VERCEL;
+
+const USERS_PATH = isProduction
+  ? path.join(os.tmpdir(), "users-metadata.json")
   : path.join(process.cwd(), "lib", "users-metadata.json");
 
 export interface User {

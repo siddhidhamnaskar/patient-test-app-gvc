@@ -322,7 +322,6 @@ export default function HomeDashboardClient({
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
                 <span className="hidden sm:inline">Admin Panel</span>
-                <span className="inline sm:hidden">Admin</span>
               </Link>
             )}
 
@@ -339,7 +338,7 @@ export default function HomeDashboardClient({
                   {currentUser.name ? currentUser.name[0] : "U"}
                 </div>
               )}
-              <div className="flex flex-col text-left">
+              <div className="hidden md:flex flex-col text-left">
                 <span className="text-xs font-bold text-gray-800 leading-none truncate max-w-[85px] sm:max-w-none">{currentUser.name || "User"}</span>
                 <span className="text-[9px] text-gray-400 font-bold uppercase tracking-wider leading-none mt-1">{currentUser.role || "User"}</span>
               </div>
