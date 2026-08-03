@@ -341,17 +341,17 @@ function ImageSelect({ value, onChange, images }: ImageSelectProps) {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between rounded-lg border border-gray-200 px-2 py-1.5 text-xs bg-white font-medium cursor-pointer focus:border-teal-500 focus:ring-1 focus:ring-teal-500/10 min-h-[46px]"
+        className="w-full flex items-center justify-between rounded-lg border border-gray-200 px-2 py-1.5 text-xs bg-white font-medium cursor-pointer focus:border-teal-500 focus:ring-1 focus:ring-teal-500/10 min-h-[70px]"
       >
-        <div className="flex items-center gap-2 truncate text-left">
+        <div className="flex items-center gap-2.5 truncate text-left">
           {selectedImage ? (
             <>
               <img
                 src={selectedImage.url}
                 alt={selectedImage.name}
-                className="h-8 w-11 rounded object-cover border border-gray-150 flex-shrink-0 shadow-xs"
+                className="h-14 w-20 rounded-lg object-cover border border-gray-150 flex-shrink-0 shadow-xs"
               />
-              <span className="truncate text-gray-805 font-bold">{selectedImage.name}</span>
+              <span className="truncate text-gray-855 font-bold">{selectedImage.name}</span>
             </>
           ) : (
             <span className="text-gray-400">-- Empty --</span>
@@ -430,17 +430,17 @@ function ImageSlotSelect({ value, onChange, images, activeImageIds }: ImageSlotS
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between rounded-lg border border-gray-200 px-3 py-1.5 text-xs bg-white font-medium cursor-pointer focus:border-teal-500 focus:ring-1 focus:ring-teal-500/10 min-h-[46px]"
+        className="w-full flex items-center justify-between rounded-lg border border-gray-200 px-3 py-1.5 text-xs bg-white font-medium cursor-pointer focus:border-teal-500 focus:ring-1 focus:ring-teal-500/10 min-h-[70px]"
       >
-        <div className="flex items-center gap-2 truncate text-left">
+        <div className="flex items-center gap-2.5 truncate text-left">
           {selectedImage && selectedImageIndex !== -1 ? (
             <>
               <img
                 src={selectedImage.url}
                 alt={selectedImage.name}
-                className="h-8 w-11 rounded object-cover border border-gray-150 flex-shrink-0 shadow-xs"
+                className="h-14 w-20 rounded-lg object-cover border border-gray-150 flex-shrink-0 shadow-xs"
               />
-              <span className="truncate text-gray-805 font-bold">
+              <span className="truncate text-gray-855 font-bold">
                 Slot {selectedImageIndex + 1}: {selectedImage.name}
               </span>
             </>
@@ -2562,12 +2562,12 @@ export default function AdminDashboardClient({
                           {activeImageIds.filter(Boolean).length > 0 && (
                             <div className="pt-2">
                               <span className="block text-xs font-bold text-gray-700 mb-2">Selected Images Preview:</span>
-                              <div className="flex flex-wrap gap-3">
+                              <div className="grid grid-cols-4 gap-3 sm:gap-4">
                                 {activeImageIds.map((imgId, idx) => {
                                   const imgItem = images.find(img => img.id === imgId);
                                   if (!imgItem) return null;
                                   return (
-                                    <div key={imgId + "_" + idx} className="relative group w-28 h-20 rounded-xl overflow-hidden border border-gray-200 shadow-sm flex-shrink-0" title={imgItem.name}>
+                                    <div key={imgId + "_" + idx} className="relative group w-full aspect-[16/10] rounded-2xl overflow-hidden border border-gray-250 shadow-md transition-transform hover:scale-[1.02]" title={imgItem.name}>
                                       <img
                                         src={imgItem.url}
                                         alt={imgItem.name}
