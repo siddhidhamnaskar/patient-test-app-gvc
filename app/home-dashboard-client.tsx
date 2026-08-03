@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useMemo } from "react";
+import { useState, useTransition, useMemo, useEffect } from "react";
 import { signOut } from "next-auth/react";
 import Link from "next/link";
 import { createServiceUserAction, updateServiceUserAction, deleteServiceUserAction } from "@/app/actions";
@@ -23,6 +23,25 @@ export default function HomeDashboardClient({
   const [serviceUsers, setServiceUsers] = useState<ServiceUser[]>(initialServiceUsers);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
+
+  const [isDebug, setIsDebug] = useState(false);
+
+  useEffect(() => {
+    console.log("HomeDashboardClient: currentUser info:", {
+      name: currentUser.name,
+      email: currentUser.email,
+      role: currentUser.role,
+      roleLower: currentUser.role?.toLowerCase(),
+      isAdmin: (currentUser.role || "").toLowerCase() === "superadmin" || (currentUser.role || "").toLowerCase() === "admin"
+    });
+
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("debug") === "true" || params.get("debug") === "1") {
+        setIsDebug(true);
+      }
+    }
+  }, [currentUser]);
 
   // Search & Filter state
   const [searchQuery, setSearchQuery] = useState("");
@@ -267,6 +286,13 @@ export default function HomeDashboardClient({
 
   return (
     <div className="flex min-h-screen flex-col bg-gray-50/50 font-sans">
+      {isDebug && (
+        <div className="bg-amber-100 border-b border-amber-250 text-amber-900 text-xs px-4 py-2.5 font-mono text-center flex flex-col items-center justify-center gap-1">
+          <div><strong>[DEBUG ACTIVE]</strong> User Session Info:</div>
+          <div>Name: {currentUser.name || "N/A"} | Email: {currentUser.email || "N/A"} | Role: {currentUser.role || "N/A"}</div>
+          <div>Is Admin: {String((currentUser.role || "").toLowerCase() === "superadmin" || (currentUser.role || "").toLowerCase() === "admin")}</div>
+        </div>
+      )}
       {/* Premium Navigation Header */}
       <header className="sticky top-0 z-30 w-full border-b border-gray-200 bg-white/80 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
