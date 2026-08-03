@@ -339,9 +339,9 @@ export default function HomeDashboardClient({
                   {currentUser.name ? currentUser.name[0] : "U"}
                 </div>
               )}
-              <div className="hidden md:flex flex-col text-left">
-                <span className="text-xs font-bold text-gray-800 leading-none">{currentUser.name || "User"}</span>
-                <span className="text-[10px] text-gray-400 font-medium leading-normal mt-0.5">{currentUser.role || "User"}</span>
+              <div className="flex flex-col text-left">
+                <span className="text-xs font-bold text-gray-800 leading-none truncate max-w-[85px] sm:max-w-none">{currentUser.name || "User"}</span>
+                <span className="text-[9px] text-gray-400 font-bold uppercase tracking-wider leading-none mt-1">{currentUser.role || "User"}</span>
               </div>
 
               <button
