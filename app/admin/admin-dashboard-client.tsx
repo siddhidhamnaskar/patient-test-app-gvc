@@ -322,7 +322,9 @@ interface ImageSelectProps {
 
 function ImageSelect({ value, onChange, images }: ImageSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -334,7 +336,24 @@ function ImageSelect({ value, onChange, images }: ImageSelectProps) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Reset search term and handle auto-focus
+  useEffect(() => {
+    if (!isOpen) {
+      setSearchTerm("");
+    } else {
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 50);
+    }
+  }, [isOpen]);
+
   const selectedImage = images.find((img) => img.id === value);
+
+  const filteredImages = useMemo(() => {
+    if (!searchTerm.trim()) return images;
+    const term = searchTerm.toLowerCase();
+    return images.filter((img) => img.name.toLowerCase().includes(term));
+  }, [images, searchTerm]);
 
   return (
     <div ref={containerRef} className="relative w-full">
@@ -363,37 +382,74 @@ function ImageSelect({ value, onChange, images }: ImageSelectProps) {
       </button>
 
       {isOpen && (
-        <div className="absolute left-0 right-0 z-50 mt-1 max-h-64 overflow-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg ring-1 ring-black/5 scrollbar-thin">
-          <button
-            type="button"
-            onClick={() => {
-              onChange("");
-              setIsOpen(false);
-            }}
-            className="w-full text-left px-3 py-2 text-xs text-red-600 hover:bg-gray-50 font-bold cursor-pointer"
-          >
-            -- Empty --
-          </button>
-          {images.map((image) => (
+        <div className="absolute left-0 right-0 z-50 mt-1 max-h-72 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg ring-1 ring-black/5 flex flex-col">
+          {/* Search Box */}
+          <div className="p-2 border-b border-gray-100 bg-gray-50 flex items-center gap-1.5 flex-shrink-0">
+            <span className="text-gray-400 pl-1.5 flex-shrink-0">
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </span>
+            <input
+              ref={inputRef}
+              type="text"
+              placeholder="Search image by name..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-transparent text-xs py-1 outline-none text-gray-800 placeholder-gray-400 font-medium"
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm("")}
+                className="text-gray-405 hover:text-gray-650 cursor-pointer pr-1 flex-shrink-0"
+              >
+                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+          </div>
+
+          {/* List Options */}
+          <div className="overflow-auto py-1 scrollbar-thin flex-1 max-h-52">
             <button
-              key={image.id}
               type="button"
               onClick={() => {
-                onChange(image.id);
+                onChange("");
                 setIsOpen(false);
               }}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 text-left text-xs hover:bg-teal-50/50 cursor-pointer ${
-                value === image.id ? "bg-teal-50 font-bold text-teal-900" : "text-gray-700 font-medium"
-              }`}
+              className="w-full text-left px-3 py-2 text-xs text-red-650 hover:bg-gray-50 font-bold cursor-pointer border-b border-gray-50"
             >
-              <img
-                src={image.url}
-                alt={image.name}
-                className="h-14 w-20 rounded-lg object-cover border border-gray-200 shadow-xs flex-shrink-0"
-              />
-              <span className="truncate">{image.name}</span>
+              -- Empty --
             </button>
-          ))}
+            {filteredImages.length === 0 ? (
+              <div className="px-3 py-3 text-xs text-gray-400 text-center font-medium">
+                No matching images found
+              </div>
+            ) : (
+              filteredImages.map((image) => (
+                <button
+                  key={image.id}
+                  type="button"
+                  onClick={() => {
+                    onChange(image.id);
+                    setIsOpen(false);
+                  }}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 text-left text-xs hover:bg-teal-50/50 cursor-pointer ${
+                    value === image.id ? "bg-teal-50 font-bold text-teal-900" : "text-gray-700 font-medium"
+                  }`}
+                >
+                  <img
+                    src={image.url}
+                    alt={image.name}
+                    className="h-14 w-20 rounded-lg object-cover border border-gray-200 shadow-xs flex-shrink-0"
+                  />
+                  <span className="truncate">{image.name}</span>
+                </button>
+              ))
+            )}
+          </div>
         </div>
       )}
     </div>
