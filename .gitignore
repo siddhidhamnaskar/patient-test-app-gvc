@@ -43,4 +43,6 @@ next-env.d.ts
 /app/generated/prisma
 
 # local data json files
-/lib/*.json
+/lib/levels-metadata.json
+/lib/users-metadata.json
+/lib/service-users.json
