@@ -285,7 +285,7 @@ export default function HomeDashboardClient({
 
           {/* Profile & Navigation Options */}
           <div className="flex items-center gap-4">
-            {(currentUser.role === "superadmin" || currentUser.role === "admin") && (
+            {((currentUser.role || "").toLowerCase() === "superadmin" || (currentUser.role || "").toLowerCase() === "admin") && (
               <Link
                 href="/admin"
                 className="inline-flex items-center gap-1.5 rounded-xl border border-teal-200 bg-teal-50/40 px-2.5 py-1.5 sm:px-3.5 sm:py-1.5 text-xs font-bold text-teal-800 shadow-sm transition-all hover:bg-teal-50 hover:border-teal-300 active:scale-95 cursor-pointer"
@@ -296,6 +296,7 @@ export default function HomeDashboardClient({
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
                 <span className="hidden sm:inline">Admin Panel</span>
+                <span className="inline sm:hidden">Admin</span>
               </Link>
             )}
 
