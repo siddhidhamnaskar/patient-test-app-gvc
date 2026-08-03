@@ -314,6 +314,189 @@ function VoiceRecorderWidget({
   );
 }
 
+interface ImageSelectProps {
+  value: string;
+  onChange: (value: string) => void;
+  images: ImageMetadata[];
+}
+
+function ImageSelect({ value, onChange, images }: ImageSelectProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const selectedImage = images.find((img) => img.id === value);
+
+  return (
+    <div ref={containerRef} className="relative w-full">
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center justify-between rounded-lg border border-gray-200 px-2 py-1.5 text-xs bg-white font-medium cursor-pointer focus:border-teal-500 focus:ring-1 focus:ring-teal-500/10 min-h-[46px]"
+      >
+        <div className="flex items-center gap-2 truncate text-left">
+          {selectedImage ? (
+            <>
+              <img
+                src={selectedImage.url}
+                alt={selectedImage.name}
+                className="h-8 w-11 rounded object-cover border border-gray-150 flex-shrink-0 shadow-xs"
+              />
+              <span className="truncate text-gray-805 font-bold">{selectedImage.name}</span>
+            </>
+          ) : (
+            <span className="text-gray-400">-- Empty --</span>
+          )}
+        </div>
+        <svg className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {isOpen && (
+        <div className="absolute left-0 right-0 z-50 mt-1 max-h-64 overflow-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg ring-1 ring-black/5 scrollbar-thin">
+          <button
+            type="button"
+            onClick={() => {
+              onChange("");
+              setIsOpen(false);
+            }}
+            className="w-full text-left px-3 py-2 text-xs text-red-600 hover:bg-gray-50 font-bold cursor-pointer"
+          >
+            -- Empty --
+          </button>
+          {images.map((image) => (
+            <button
+              key={image.id}
+              type="button"
+              onClick={() => {
+                onChange(image.id);
+                setIsOpen(false);
+              }}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 text-left text-xs hover:bg-teal-50/50 cursor-pointer ${
+                value === image.id ? "bg-teal-50 font-bold text-teal-900" : "text-gray-700 font-medium"
+              }`}
+            >
+              <img
+                src={image.url}
+                alt={image.name}
+                className="h-14 w-20 rounded-lg object-cover border border-gray-200 shadow-xs flex-shrink-0"
+              />
+              <span className="truncate">{image.name}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface ImageSlotSelectProps {
+  value: string;
+  onChange: (value: string) => void;
+  images: ImageMetadata[];
+  activeImageIds: string[];
+}
+
+function ImageSlotSelect({ value, onChange, images, activeImageIds }: ImageSlotSelectProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const selectedImageId = value;
+  const selectedImageIndex = activeImageIds.indexOf(selectedImageId);
+  const selectedImage = images.find((img) => img.id === selectedImageId);
+
+  return (
+    <div ref={containerRef} className="relative w-full">
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center justify-between rounded-lg border border-gray-200 px-3 py-1.5 text-xs bg-white font-medium cursor-pointer focus:border-teal-500 focus:ring-1 focus:ring-teal-500/10 min-h-[46px]"
+      >
+        <div className="flex items-center gap-2 truncate text-left">
+          {selectedImage && selectedImageIndex !== -1 ? (
+            <>
+              <img
+                src={selectedImage.url}
+                alt={selectedImage.name}
+                className="h-8 w-11 rounded object-cover border border-gray-150 flex-shrink-0 shadow-xs"
+              />
+              <span className="truncate text-gray-805 font-bold">
+                Slot {selectedImageIndex + 1}: {selectedImage.name}
+              </span>
+            </>
+          ) : (
+            <span className="text-gray-400">-- No Answer / Empty --</span>
+          )}
+        </div>
+        <svg className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {isOpen && (
+        <div className="absolute left-0 right-0 z-50 mt-1 max-h-64 overflow-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg ring-1 ring-black/5 scrollbar-thin">
+          <button
+            type="button"
+            onClick={() => {
+              onChange("");
+              setIsOpen(false);
+            }}
+            className="w-full text-left px-3 py-2 text-xs text-red-600 hover:bg-gray-50 font-bold cursor-pointer"
+          >
+            -- No Answer / Empty --
+          </button>
+          {activeImageIds.filter(Boolean).map((imgId, imgIdx) => {
+            const foundImg = images.find((i) => i.id === imgId);
+            if (!foundImg) return null;
+            return (
+              <button
+                key={imgId}
+                type="button"
+                onClick={() => {
+                  onChange(imgId);
+                  setIsOpen(false);
+                }}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 text-left text-xs hover:bg-teal-50/50 cursor-pointer ${
+                  value === imgId ? "bg-teal-50 font-bold text-teal-900" : "text-gray-700 font-medium"
+                }`}
+              >
+                <img
+                  src={foundImg.url}
+                  alt={foundImg.name}
+                  className="h-14 w-20 rounded-lg object-cover border border-gray-200 shadow-xs flex-shrink-0"
+                />
+                <span className="truncate">
+                  Slot {imgIdx + 1}: {foundImg.name}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AdminDashboardClient({
   initialUsers,
   initialImages,
@@ -2365,18 +2548,11 @@ export default function AdminDashboardClient({
                                       <span className="inline-flex h-2 w-2 rounded-full bg-teal-500"></span>
                                     )}
                                   </div>
-                                  <select
+                                  <ImageSelect
                                     value={currentVal}
-                                    onChange={(e) => handleUpdateScreenImage(screen, idx, e.target.value)}
-                                    className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-xs outline-none transition-all focus:border-teal-500 focus:ring-1 focus:ring-teal-500/10 bg-white font-medium cursor-pointer"
-                                  >
-                                    <option value="">-- Empty --</option>
-                                    {images.map((image) => (
-                                      <option key={image.id} value={image.id}>
-                                        {image.name}
-                                      </option>
-                                    ))}
-                                  </select>
+                                    onChange={(val) => handleUpdateScreenImage(screen, idx, val)}
+                                    images={images}
+                                  />
                                 </div>
                               );
                             })}
@@ -2449,21 +2625,12 @@ export default function AdminDashboardClient({
                                         <label className="block text-[10px] text-gray-500 font-bold uppercase tracking-wider">
                                           Correct Answer Image
                                         </label>
-                                        <select
-                                          value={screen.answers?.[idx] || ""}
-                                          onChange={(e) => handleUpdateScreenAnswer(screen, idx, e.target.value)}
-                                          className="w-full rounded-lg border border-gray-200 px-3 py-1.5 text-xs outline-none transition-all focus:border-teal-500 focus:ring-1 focus:ring-teal-500/10 bg-white font-medium cursor-pointer"
-                                        >
-                                          <option value="">-- No Answer / Empty --</option>
-                                          {activeImageIds.filter(Boolean).map((imgId, imgIdx) => {
-                                            const foundImg = images.find((i) => i.id === imgId);
-                                            return (
-                                              <option key={imgId} value={imgId}>
-                                                Slot {imgIdx + 1}: {foundImg ? foundImg.name : imgId}
-                                              </option>
-                                            );
-                                          })}
-                                        </select>
+                                        <ImageSlotSelect
+                                           value={screen.answers?.[idx] || ""}
+                                           onChange={(val) => handleUpdateScreenAnswer(screen, idx, val)}
+                                           images={images}
+                                           activeImageIds={activeImageIds}
+                                         />
                                       </div>
                                     )}
                                   </div>
