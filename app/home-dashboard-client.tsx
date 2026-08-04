@@ -344,7 +344,7 @@ export default function HomeDashboardClient({
               </div>
 
               <button
-                onClick={() => signOut({ callbackUrl: "/" })}
+                onClick={() => signOut({ redirectTo: "/app3001" })}
                 className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-900 transition-colors cursor-pointer"
                 title="Sign Out"
               >

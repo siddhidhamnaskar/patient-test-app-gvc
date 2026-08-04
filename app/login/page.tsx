@@ -37,7 +37,7 @@ export default function LoginPage() {
 
         <div className="relative z-10 flex flex-1 items-center justify-center px-8 min-h-0">
           <Image
-            src="/medical-illustration.svg"
+            src="/app3001/medical-illustration.svg"
             alt="Healthcare illustration"
             width={560}
             height={300}

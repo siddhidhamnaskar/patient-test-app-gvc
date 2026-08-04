@@ -37,7 +37,7 @@ export default function GoogleSignInButton() {
       // Get the Google sign-in authorization URL from NextAuth without redirecting the main window
       const result = await signIn("google", {
         redirect: false,
-        callbackUrl: "/login/success",
+        callbackUrl: "/app3001/login/success",
       });
 
       if (result && result.url) {

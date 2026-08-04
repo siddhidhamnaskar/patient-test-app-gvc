@@ -13,6 +13,7 @@ declare module "next-auth" {
 console.log("NextAuth loading - GOOGLE_CLIENT_ID:", process.env.GOOGLE_CLIENT_ID ? `Loaded (length: ${process.env.GOOGLE_CLIENT_ID.length}, prefix: ${process.env.GOOGLE_CLIENT_ID.substring(0, 12)}...)` : "MISSING/NOT_LOADED");
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  basePath: "/app3001/api/auth",
   providers: [
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID,
@@ -23,7 +24,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     strategy: "jwt",
   },
   pages: {
-    signIn: "/login",
+    signIn: "/",
   },
   callbacks: {
     async signIn({ user, account }) {
