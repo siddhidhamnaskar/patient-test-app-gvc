@@ -96,11 +96,15 @@ export function getImagesMetadata(): ImageMetadata[] {
     const content = fs.readFileSync(METADATA_PATH, "utf-8");
     let items: ImageMetadata[] = JSON.parse(content || "[]");
     
+    console.log(`[Metadata Store] getImagesMetadata: file=${METADATA_PATH}, count=${items.length}, isProduction=${isProduction}`);
+
     let changed = false;
     items = items.map(item => {
       if (item.url && !item.url.startsWith("/app3001") && item.url.includes("uploads/")) {
+        const oldUrl = item.url;
         const index = item.url.indexOf("uploads/");
         item.url = "/app3001/" + item.url.substring(index);
+        console.log(`[Metadata Store] Migrating image path: ${oldUrl} -> ${item.url}`);
         changed = true;
       }
       return item;
@@ -109,8 +113,9 @@ export function getImagesMetadata(): ImageMetadata[] {
     if (changed) {
       try {
         fs.writeFileSync(METADATA_PATH, JSON.stringify(items, null, 2), "utf-8");
+        console.log(`[Metadata Store] Successfully wrote migrated images metadata to ${METADATA_PATH}`);
       } catch (err) {
-        console.error("Failed to auto-migrate image URLs in store file:", err);
+        console.error("[Metadata Store] Failed to auto-migrate image URLs in store file:", err);
       }
     }
 
@@ -227,6 +232,8 @@ export function getLevelsMetadata(): LevelMetadata[] {
     const content = fs.readFileSync(LEVELS_PATH, "utf-8");
     let levels: LevelMetadata[] = JSON.parse(content || "[]");
 
+    console.log(`[Metadata Store] getLevelsMetadata: file=${LEVELS_PATH}, isProduction=${isProduction}`);
+
     let changed = false;
     levels = levels.map(level => {
       if (level.screens) {
@@ -234,9 +241,12 @@ export function getLevelsMetadata(): LevelMetadata[] {
           if (screen.voicePromptUrls) {
             screen.voicePromptUrls = screen.voicePromptUrls.map(url => {
               if (url && !url.startsWith("/app3001") && url.includes("recordings/")) {
+                const oldUrl = url;
                 const index = url.indexOf("recordings/");
+                const newUrl = "/app3001/" + url.substring(index);
+                console.log(`[Metadata Store] Migrating recording path: ${oldUrl} -> ${newUrl}`);
                 changed = true;
-                return "/app3001/" + url.substring(index);
+                return newUrl;
               }
               return url;
             });
@@ -250,8 +260,9 @@ export function getLevelsMetadata(): LevelMetadata[] {
     if (changed) {
       try {
         fs.writeFileSync(LEVELS_PATH, JSON.stringify(levels, null, 2), "utf-8");
+        console.log(`[Metadata Store] Successfully wrote migrated levels metadata to ${LEVELS_PATH}`);
       } catch (err) {
-        console.error("Failed to auto-migrate recording URLs in levels file:", err);
+        console.error("[Metadata Store] Failed to auto-migrate recording URLs in levels file:", err);
       }
     }
 
