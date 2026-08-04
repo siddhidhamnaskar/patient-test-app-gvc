@@ -34,7 +34,30 @@ export default async function AdminPage() {
   // Fetch initial levels metadata
   const levels = getLevelsMetadata();
 
+  // Sanitize image URLs in case of delayed database updates
+  const sanitizedImages = images.map((img) => {
+    let url = img.url;
+    if (url && !url.startsWith("/app3001") && url.includes("uploads/")) {
+      const idx = url.indexOf("uploads/");
+      url = "/app3001/" + url.substring(idx);
+    }
+    return { ...img, url };
+  });
 
+  // Sanitize level voice prompt URLs
+  const sanitizedLevels = levels.map((lvl) => ({
+    ...lvl,
+    screens: lvl.screens?.map((scr) => ({
+      ...scr,
+      voicePromptUrls: scr.voicePromptUrls?.map((url) => {
+        if (url && !url.startsWith("/app3001") && url.includes("recordings/")) {
+          const idx = url.indexOf("recordings/");
+          return "/app3001/" + url.substring(idx);
+        }
+        return url;
+      }),
+    })),
+  }));
 
   // Serialize dates to prevent Next.js Client Component warnings
   const serializedUsers = users.map((user) => ({
@@ -87,9 +110,9 @@ export default async function AdminPage() {
         {/* User & Settings Administration Dashboard */}
         <AdminDashboardClient
           initialUsers={serializedUsers}
-          initialImages={images}
+          initialImages={sanitizedImages}
           initialQuestions={questions}
-          initialLevels={levels}
+          initialLevels={sanitizedLevels}
           currentUserEmail={session.user.email}
         />
         

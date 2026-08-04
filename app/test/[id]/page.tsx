@@ -47,7 +47,17 @@ export default async function TestPage({ params }: TestPageProps) {
   const images = getImagesMetadata();
   const questions = getQuestionsMetadata();
 
-  // Serialize levels to avoid warnings about passing class instances if any
+  // Sanitize image URLs in case of delayed database updates
+  const sanitizedImages = images.map((img) => {
+    let url = img.url;
+    if (url && !url.startsWith("/app3001") && url.includes("uploads/")) {
+      const idx = url.indexOf("uploads/");
+      url = "/app3001/" + url.substring(idx);
+    }
+    return { ...img, url };
+  });
+
+  // Serialize levels and sanitize recording URLs
   const serializedLevels = levels.map((lvl) => ({
     id: lvl.id,
     name: lvl.name,
@@ -61,7 +71,13 @@ export default async function TestPage({ params }: TestPageProps) {
       questionId: scr.questionId,
       questionIds: scr.questionIds,
       voiceRecordEnabled: scr.voiceRecordEnabled,
-      voicePromptUrls: scr.voicePromptUrls,
+      voicePromptUrls: scr.voicePromptUrls?.map((url) => {
+        if (url && !url.startsWith("/app3001") && url.includes("recordings/")) {
+          const idx = url.indexOf("recordings/");
+          return "/app3001/" + url.substring(idx);
+        }
+        return url;
+      }),
       answers: scr.answers || [],
     })) || [],
   }));
@@ -70,7 +86,7 @@ export default async function TestPage({ params }: TestPageProps) {
     <TestPortalClient
       serviceUser={serviceUser}
       initialLevels={serializedLevels}
-      images={images}
+      images={sanitizedImages}
       questions={questions}
     />
   );
