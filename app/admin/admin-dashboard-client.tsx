@@ -188,7 +188,7 @@ function VoiceRecorderWidget({
     if (!audioUrl) return;
 
     // If it's a saved recording on the server, delete it
-    if (audioUrl.startsWith("/recordings/")) {
+    if (audioUrl.startsWith("/recordings/") || audioUrl.startsWith("/app3001/recordings/")) {
       const confirmDel = window.confirm("Are you sure you want to delete this recording from the server?");
       if (!confirmDel) return;
 
@@ -277,7 +277,7 @@ function VoiceRecorderWidget({
           <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full">
             <audio src={audioUrl} controls className="h-7 w-full sm:w-48 outline-none" />
             <div className="flex items-center gap-2 mt-1 sm:mt-0">
-              {audioChunksRef.current.length > 0 && !audioUrl.startsWith("/recordings/") && (
+              {audioChunksRef.current.length > 0 && !audioUrl.startsWith("/recordings/") && !audioUrl.startsWith("/app3001/recordings/") && (
                 <button
                   type="button"
                   disabled={isUploading}
@@ -1158,7 +1158,7 @@ export default function AdminDashboardClient({
     currentVoiceUrls[questionIndex] = "";
 
     // Trigger delete action for old prompt audio file in the background if it exists
-    if (previousUrl && previousUrl.startsWith("/recordings/")) {
+    if (previousUrl && (previousUrl.startsWith("/recordings/") || previousUrl.startsWith("/app3001/recordings/"))) {
       deleteVoicePromptAction(previousUrl).catch(console.error);
     }
 

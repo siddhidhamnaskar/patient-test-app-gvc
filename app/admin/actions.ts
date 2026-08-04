@@ -193,7 +193,7 @@ export async function uploadImagesAction(formData: FormData) {
       const imageItem: ImageMetadata = {
         id,
         name: defaultName,
-        url: `/uploads/${filename}`,
+        url: `/app3001/uploads/${filename}`,
         uploadedBy: session.user.email || "Unknown Admin",
         createdAt: new Date().toISOString(),
       };
@@ -466,7 +466,7 @@ export async function uploadVoicePromptAction(formData: FormData) {
     const buffer = Buffer.from(arrayBuffer);
     fs.writeFileSync(filePath, buffer);
 
-    const relativeUrl = `/recordings/${filename}`;
+    const relativeUrl = `/app3001/recordings/${filename}`;
 
     return { success: true, url: relativeUrl };
   } catch (error: any) {
@@ -479,12 +479,17 @@ export async function uploadVoicePromptAction(formData: FormData) {
 export async function deleteVoicePromptAction(relativeUrl: string) {
   await requireAdmin();
 
-  if (!relativeUrl || !relativeUrl.startsWith("/recordings/")) {
+  let cleanUrl = relativeUrl;
+  if (cleanUrl.startsWith("/app3001/")) {
+    cleanUrl = cleanUrl.replace("/app3001", "");
+  }
+
+  if (!cleanUrl || !cleanUrl.startsWith("/recordings/")) {
     return { success: false, error: "Invalid recording path." };
   }
 
   try {
-    const filePath = path.join(process.cwd(), "public", relativeUrl);
+    const filePath = path.join(process.cwd(), "public", cleanUrl);
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
     }
