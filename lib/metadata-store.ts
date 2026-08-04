@@ -98,8 +98,9 @@ export function getImagesMetadata(): ImageMetadata[] {
     
     let changed = false;
     items = items.map(item => {
-      if (item.url && item.url.startsWith("/uploads/")) {
-        item.url = "/app3001" + item.url;
+      if (item.url && !item.url.startsWith("/app3001") && item.url.includes("uploads/")) {
+        const index = item.url.indexOf("uploads/");
+        item.url = "/app3001/" + item.url.substring(index);
         changed = true;
       }
       return item;
@@ -232,9 +233,10 @@ export function getLevelsMetadata(): LevelMetadata[] {
         level.screens = level.screens.map(screen => {
           if (screen.voicePromptUrls) {
             screen.voicePromptUrls = screen.voicePromptUrls.map(url => {
-              if (url && url.startsWith("/recordings/")) {
+              if (url && !url.startsWith("/app3001") && url.includes("recordings/")) {
+                const index = url.indexOf("recordings/");
                 changed = true;
-                return "/app3001" + url;
+                return "/app3001/" + url.substring(index);
               }
               return url;
             });
