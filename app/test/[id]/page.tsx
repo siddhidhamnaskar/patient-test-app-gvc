@@ -4,6 +4,8 @@ import { getServiceUserById } from "@/lib/service-user-store";
 import { getLevelsMetadata, getImagesMetadata, getQuestionsMetadata } from "@/lib/metadata-store";
 import TestPortalClient from "./test-portal-client";
 
+export const dynamic = "force-dynamic";
+
 interface TestPageProps {
   params: Promise<{
     id: string;

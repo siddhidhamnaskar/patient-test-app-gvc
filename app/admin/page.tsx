@@ -5,6 +5,8 @@ import AdminDashboardClient from "./admin-dashboard-client";
 import Link from "next/link";
 import { getImagesMetadata, getQuestionsMetadata, getLevelsMetadata } from "@/lib/metadata-store";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = {
   title: "Admin Panel | Test App",
   description: "Manage users, system access, and roles.",
