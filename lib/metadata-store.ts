@@ -94,7 +94,26 @@ export function getImagesMetadata(): ImageMetadata[] {
   try {
     ensureStoreExists();
     const content = fs.readFileSync(METADATA_PATH, "utf-8");
-    return JSON.parse(content || "[]");
+    let items: ImageMetadata[] = JSON.parse(content || "[]");
+    
+    let changed = false;
+    items = items.map(item => {
+      if (item.url && item.url.startsWith("/uploads/")) {
+        item.url = "/app3001" + item.url;
+        changed = true;
+      }
+      return item;
+    });
+
+    if (changed) {
+      try {
+        fs.writeFileSync(METADATA_PATH, JSON.stringify(items, null, 2), "utf-8");
+      } catch (err) {
+        console.error("Failed to auto-migrate image URLs in store file:", err);
+      }
+    }
+
+    return items;
   } catch (error) {
     console.error("Failed to read images metadata:", error);
     return [];
@@ -205,7 +224,35 @@ export function getLevelsMetadata(): LevelMetadata[] {
   try {
     ensureLevelsStoreExists();
     const content = fs.readFileSync(LEVELS_PATH, "utf-8");
-    const levels: LevelMetadata[] = JSON.parse(content || "[]");
+    let levels: LevelMetadata[] = JSON.parse(content || "[]");
+
+    let changed = false;
+    levels = levels.map(level => {
+      if (level.screens) {
+        level.screens = level.screens.map(screen => {
+          if (screen.voicePromptUrls) {
+            screen.voicePromptUrls = screen.voicePromptUrls.map(url => {
+              if (url && url.startsWith("/recordings/")) {
+                changed = true;
+                return "/app3001" + url;
+              }
+              return url;
+            });
+          }
+          return screen;
+        });
+      }
+      return level;
+    });
+
+    if (changed) {
+      try {
+        fs.writeFileSync(LEVELS_PATH, JSON.stringify(levels, null, 2), "utf-8");
+      } catch (err) {
+        console.error("Failed to auto-migrate recording URLs in levels file:", err);
+      }
+    }
+
     return levels.sort((a, b) => a.order - b.order);
   } catch (error) {
     console.error("Failed to read levels metadata:", error);
