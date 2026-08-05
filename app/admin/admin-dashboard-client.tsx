@@ -264,7 +264,7 @@ function VoiceRecorderWidget({
           <button
             type="button"
             onClick={stopRecording}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-850 hover:bg-gray-900 text-white text-xs font-bold rounded-lg transition-colors cursor-pointer"
+            className="bg-gray-900 flex items-center gap-1.5 px-3 py-1.5 hover:bg-gray-900 text-white text-xs font-bold rounded-lg transition-colors cursor-pointer"
           >
             <svg className="h-3.5 w-3.5 text-white" fill="currentColor" viewBox="0 0 24 24">
               <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
